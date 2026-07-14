@@ -13,12 +13,17 @@
 SDK는 **기반 core 하나 + 신호 도메인별 모듈 여러 개**로 나뉜다. 필요한 도메인만
 가져다 쓴다 (NEVONEX의 Function Item별 의존성과 같은 모델).
 
-| 아티팩트 | 내용 | 자격 선언 |
+| 아티팩트 | 내용 | 코루틴 |
 |---|---|---|
-| `farm.agmo.vehicle:core` | 연결·제네릭 구독/제어·카탈로그. 모든 도메인의 기반 | — |
-| `farm.agmo.vehicle:imu` | 자세 읽기 — 각도/각속도/가속도 (Aceinna MTLT305) | — |
-| `farm.agmo.vehicle:engine` | 엔진 읽기 — EEC1(rpm+부하)/수온/오일압/연료/가동시간 | — |
-| `farm.agmo.vehicle:hitch` | 히치 위치 읽기 + 제어(`setPosition %`, raw 변환 은닉) | USES_CONTROL=HITCH_CMD |
+| `farm.agmo.vehicle:core` | 연결·제네릭 구독/제어·카탈로그·`Signal` 베이스(생명주기) | 없음 |
+| `farm.agmo.vehicle:imu` | 자세 읽기 — 각도/각속도/가속도 (Aceinna MTLT305) | 없음 |
+| `farm.agmo.vehicle:engine` | 엔진 읽기 — EEC1(rpm+부하)/수온/오일압/연료/가동시간 | 없음 |
+| `farm.agmo.vehicle:hitch` | 히치 위치 읽기 + 제어(`setPosition %`, raw 변환 은닉) | 없음 |
+| `farm.agmo.vehicle:flow` | 위 신호들을 Kotlin `Flow`로 (옵션) | **여기만** |
+
+**콜백 기본, Flow는 옵션 (Room의 room-ktx 방식).** 코어·도메인 모듈은 콜백이라
+코루틴 의존이 없다(Java 앱도 OK). 코루틴/Flow를 쓰는 앱만 `:flow`를 추가한다.
+생명주기는 `lifecycle.addObserver(...)` 한 줄로 자동 연동된다.
 
 **설계 원칙: CAN 메시지(ID) 하나 = 클래스 하나.** 한 PGN은 한 프레임으로 통째로
 오므로, 그 안의 신호들(pitch+roll 등)은 한 데이터 클래스의 필드가 된다. 도메인 모듈은
@@ -62,38 +67,52 @@ dependencies {
 }
 ```
 
-## 사용 — 도메인 모듈 (권장)
+## 사용 — 콜백 (기본, 코루틴 불필요)
 
-인터페이스는 안드로이드 위치 API(`FusedLocationProviderClient`)와 같은 모양이다:
-`getClient` → 콜백 객체 등록(`requestUpdates`) → 참조로 해제(`removeUpdates`) → `lastX` 캐시.
+도메인 객체를 리스너와 함께 만들고 `lifecycle.addObserver` 한 줄이면 끝 —
+ON_START에 자동 구독, ON_STOP에 자동 해제된다.
 
 ```kotlin
 // IMU 자세 (자격 불필요)
-val imu = Imu.getClient(this)
-val imuCb = object : ImuCallback() {           // LocationCallback 대응
+val imu = Imu(this, object : Imu.Listener {
     override fun onAngles(a: ImuAngles) = runOnUiThread { render(a.pitchDeg, a.rollDeg) }
     override fun onRates(r: ImuRates)   = runOnUiThread { render(r.xDegS, r.yDegS, r.zDegS) }
-}
-imu.requestUpdates(imuCb)                       // requestLocationUpdates 대응
-// onPause: imu.removeUpdates(imuCb)            // removeLocationUpdates 대응
-val lastPitch = imu.lastAngles?.pitchDeg        // lastLocation 대응
+    // 필요한 것만 override — 안 하면 no-op
+})
+lifecycle.addObserver(imu)     // ← 생명주기 한 줄
 
 // 엔진 (자격 불필요)
-val eng = Engine.getClient(this)
-eng.requestUpdates(object : EngineCallback() {
+val engine = Engine(this, object : Engine.Listener {
     override fun onEec1(e: Eec1) = runOnUiThread { render(e.rpm, e.loadPercent) }
     override fun onTemperature(t: EngineTemperature) = runOnUiThread { render(t.coolantC) }
 })
+lifecycle.addObserver(engine)
 
-// 히치 — 위치 읽기(콜백) + 제어(세션)
-val hitch = Hitch.getClient(this)
-hitch.requestUpdates(object : HitchCallback() {
+// 히치 — 위치 읽기(리스너) + 제어(세션)
+val hitch = Hitch(this, object : Hitch.Listener {
     override fun onPosition(p: HitchPosition) = runOnUiThread { render(p.percent) }
 })
-val ctrl = hitch.acquireControl() ?: return     // null = 자격 없음 / 상위 보유 중 / 미연결
-ctrl.onLost { runOnUiThread { lockUi() } }      // 상위 계층 선점 시
-ctrl.setPosition(50.0)                          // % — raw 변환은 SDK가 처리
-ctrl.release()                                  // 정상 반납(마지막 위치 유지)
+lifecycle.addObserver(hitch)
+
+val ctrl = Hitch.control(this) ?: return     // null = 자격 없음 / 상위 보유 중 / 미연결
+ctrl.onLost { runOnUiThread { lockUi() } }   // 상위 계층 선점 시
+ctrl.setPosition(50.0)                       // % — raw 변환은 SDK가 처리
+ctrl.release()                               // 정상 반납(마지막 위치 유지)
+```
+
+## 사용 — Flow (옵션, `:flow` 모듈)
+
+코루틴을 쓰면 스트림별 구독·조합이 된다. `repeatOnLifecycle`이 표준 생명주기.
+
+```kotlin
+lifecycleScope.launch {
+    repeatOnLifecycle(Lifecycle.State.STARTED) {
+        ImuFlow.angles(this@MainActivity).collect { render(it.pitchDeg, it.rollDeg) }
+    }
+}
+// 조합 — 두 신호 합쳐서
+combine(ImuFlow.angles(ctx), EngineFlow.eec1(ctx)) { a, e -> Dashboard(a, e) }
+    .collect { render(it) }
 ```
 
 ## 사용 — core 제네릭 (동적 신호 / 도메인 모듈 없는 신호)

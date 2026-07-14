@@ -21,4 +21,10 @@ android {
     publishing { singleVariant("release") }
 }
 
+dependencies {
+    // 생명주기 한 줄 연동(DefaultLifecycleObserver)만 사용 — 코루틴 의존 없음.
+    // Flow가 필요하면 :flow 모듈을 옵션으로 추가(그쪽만 kotlinx-coroutines 의존).
+    api("androidx.lifecycle:lifecycle-common:2.8.7")
+}
+
 apply(from = "$rootDir/gradle/publish.gradle.kts")
