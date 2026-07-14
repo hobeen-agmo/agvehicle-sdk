@@ -1,40 +1,63 @@
-// Hitch.kt — 히치 도메인 모듈 (읽기 + 제어, core 위에 얹힘).
+// Hitch.kt — 히치 도메인 (읽기: Android LocationManager 패턴 / 쓰기: 제어 세션).
+//
+//   val client = Hitch.getClient(context)
 //
 //   // 위치 읽기 (자격 불필요)
-//   val sub = Hitch.position(context) { p -> render(p.percent) }
+//   val cb = object : HitchCallback() {
+//       override fun onPosition(p: HitchPosition) { render(p.percent) }
+//   }
+//   client.requestUpdates(cb)
+//   client.removeUpdates(cb)
+//   val last = client.lastPosition
 //
-//   // 제어 (매니페스트에 USES_CONTROL=HITCH_CMD 선언 필요)
-//   val hitch = Hitch.control(context) ?: return   // null = 자격 없음/보유 중/미연결
-//   hitch.onLost { lockUi() }
-//   hitch.setPosition(50.0)                         // % — raw 변환은 SDK가 숨김
-//   hitch.release()
+//   // 제어 (매니페스트에 USES_CONTROL=HITCH_CMD 선언 필요) — 읽기와 성격이 달라 세션으로
+//   val ctrl = client.acquireControl() ?: return   // null = 자격 없음/보유 중/미연결
+//   ctrl.onLost { lockUi() }
+//   ctrl.setPosition(50.0)                          // % — raw 변환은 SDK가 숨김
+//   ctrl.release()
 package farm.agmo.vehicle.hitch
 
 import android.content.Context
 import farm.agmo.vehicle.sdk.AgVehicle
+import java.util.concurrent.ConcurrentHashMap
+
+/** 히치 위치 콜백 (읽기) */
+abstract class HitchCallback {
+    open fun onPosition(position: HitchPosition) {}
+}
 
 object Hitch {
-    /** 데몬 내장 제어 신호 key */
-    const val CONTROL_KEY = "HITCH_CMD"
+    fun getClient(context: Context): HitchClient = HitchClient(AgVehicle.shared(context))
+}
 
-    /** 현재 히치 위치(%) 스트림. 자격 불필요(읽기). PGN 0xFE45 */
-    fun position(context: Context, onSample: (HitchPosition) -> Unit): AgVehicle.Subscription =
-        AgVehicle.shared(context).subscribe(HitchPosition.KEY) { value ->
-            value.number?.let { onSample(HitchPosition(it)) }
+class HitchClient internal constructor(private val v: AgVehicle) {
+    private val regs = ConcurrentHashMap<HitchCallback, AgVehicle.Subscription>()
+
+    @Volatile var lastPosition: HitchPosition? = null; private set
+
+    /** 위치(%) 갱신 시작. 자격 불필요(읽기). */
+    fun requestUpdates(callback: HitchCallback) {
+        if (regs.containsKey(callback)) return
+        regs[callback] = v.subscribe(HitchPosition.KEY) { value ->
+            value.number?.let { p -> val pos = HitchPosition(p); lastPosition = pos; callback.onPosition(pos) }
         }
+    }
+
+    fun removeUpdates(callback: HitchCallback) {
+        regs.remove(callback)?.close()
+    }
 
     /**
      * 히치 제어권을 잡는다. null이면 자격 없음(매니페스트 미선언)·상위 보유 중·미연결.
-     * 반환된 핸들로 위치를 %로 지시한다.
+     * 읽기(구독)와 달리 제어는 단일 세션이라 콜백 등록이 아닌 세션 핸들로 준다.
      */
-    fun control(context: Context): HitchControl? {
-        val v = AgVehicle.shared(context)
-        // 선점 통지는 acquire 시점에 등록해야 하므로, 아직 안 만들어진 핸들의 콜백을
-        // 지연 참조로 넘긴다(핸들 생성 직후 배선 완료).
+    fun acquireControl(): HitchControl? {
         var handle: HitchControl? = null
-        val session = v.acquire(CONTROL_KEY) { handle?.fireLost() } ?: return null
+        val session = v.acquire(HITCH_CMD) { handle?.fireLost() } ?: return null
         return HitchControl(session).also { handle = it }
     }
+
+    private companion object { const val HITCH_CMD = "HITCH_CMD" }
 }
 
 class HitchControl internal constructor(
@@ -42,7 +65,7 @@ class HitchControl internal constructor(
 ) {
     private var lostCb: (() -> Unit)? = null
 
-    /** 히치 위치 지시 (0~100%). false = 세션 상실 — Hitch.control부터 다시 */
+    /** 히치 위치 지시 (0~100%). false = 세션 상실 — acquireControl부터 다시 */
     fun setPosition(percent: Double): Boolean =
         session.send(HitchScale.toRaw(percent))
 

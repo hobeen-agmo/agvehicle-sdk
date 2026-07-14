@@ -64,24 +64,36 @@ dependencies {
 
 ## 사용 — 도메인 모듈 (권장)
 
+인터페이스는 안드로이드 위치 API(`FusedLocationProviderClient`)와 같은 모양이다:
+`getClient` → 콜백 객체 등록(`requestUpdates`) → 참조로 해제(`removeUpdates`) → `lastX` 캐시.
+
 ```kotlin
-// IMU 자세 (자격 불필요) — 메시지별 구독
-val a = Imu.angles(this) { runOnUiThread { render(it.pitchDeg, it.rollDeg) } }
-val g = Imu.rates(this)  { runOnUiThread { render(it.xDegS, it.yDegS, it.zDegS) } }
-// ...
-a.close(); g.close()
+// IMU 자세 (자격 불필요)
+val imu = Imu.getClient(this)
+val imuCb = object : ImuCallback() {           // LocationCallback 대응
+    override fun onAngles(a: ImuAngles) = runOnUiThread { render(a.pitchDeg, a.rollDeg) }
+    override fun onRates(r: ImuRates)   = runOnUiThread { render(r.xDegS, r.yDegS, r.zDegS) }
+}
+imu.requestUpdates(imuCb)                       // requestLocationUpdates 대응
+// onPause: imu.removeUpdates(imuCb)            // removeLocationUpdates 대응
+val lastPitch = imu.lastAngles?.pitchDeg        // lastLocation 대응
 
 // 엔진 (자격 불필요)
-val e = Engine.eec1(this) { runOnUiThread { render(it.rpm, it.loadPercent) } }
-Engine.temperature(this) { render(it.coolantC) }
-Engine.fuelLevel(this)   { render(it.percent) }
+val eng = Engine.getClient(this)
+eng.requestUpdates(object : EngineCallback() {
+    override fun onEec1(e: Eec1) = runOnUiThread { render(e.rpm, e.loadPercent) }
+    override fun onTemperature(t: EngineTemperature) = runOnUiThread { render(t.coolantC) }
+})
 
-// 히치 위치 읽기 + 제어
-Hitch.position(this) { render(it.percent) }
-val hitch = Hitch.control(this) ?: return   // null = 자격 없음 / 상위 보유 중 / 미연결
-hitch.onLost { runOnUiThread { lockUi() } } // 상위 계층 선점 시
-hitch.setPosition(50.0)                     // % — raw 변환은 SDK가 처리
-hitch.release()                             // 정상 반납(마지막 위치 유지)
+// 히치 — 위치 읽기(콜백) + 제어(세션)
+val hitch = Hitch.getClient(this)
+hitch.requestUpdates(object : HitchCallback() {
+    override fun onPosition(p: HitchPosition) = runOnUiThread { render(p.percent) }
+})
+val ctrl = hitch.acquireControl() ?: return     // null = 자격 없음 / 상위 보유 중 / 미연결
+ctrl.onLost { runOnUiThread { lockUi() } }      // 상위 계층 선점 시
+ctrl.setPosition(50.0)                          // % — raw 변환은 SDK가 처리
+ctrl.release()                                  // 정상 반납(마지막 위치 유지)
 ```
 
 ## 사용 — core 제네릭 (동적 신호 / 도메인 모듈 없는 신호)
