@@ -20,6 +20,7 @@ import android.content.Context
 import farm.agmo.vehicle.engine.*
 import farm.agmo.vehicle.hitch.HitchPosition
 import farm.agmo.vehicle.imu.*
+import farm.agmo.vehicle.vehicle.*
 import farm.agmo.vehicle.sdk.AgVehicle
 import kotlinx.coroutines.channels.BufferOverflow
 import kotlinx.coroutines.channels.awaitClose
@@ -68,4 +69,11 @@ object EngineFlow {
 object HitchFlow {
     fun position(context: Context): Flow<HitchPosition> =
         signalFlow(context, HitchPosition.KEY, ::HitchPosition)
+}
+
+object VehicleFlow {
+    fun speed(context: Context): Flow<VehicleSpeed> = signalFlow(context, VehicleSpeed.KEY, ::VehicleSpeed)
+    fun pto(context: Context): Flow<PtoSpeed> = signalFlow(context, PtoSpeed.KEY, ::PtoSpeed)
+    fun battery(context: Context): Flow<Battery> = signalFlow(context, Battery.KEY, ::Battery)
+    fun dpf(context: Context): Flow<Dpf> = signalFlow(context, Dpf.KEY, ::Dpf)
 }

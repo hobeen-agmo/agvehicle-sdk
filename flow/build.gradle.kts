@@ -23,6 +23,7 @@ dependencies {
     api(project(":imu"))
     api(project(":engine"))
     api(project(":hitch"))
+    api(project(":vehicle"))
     // 이 모듈만 코루틴 의존 (callbackFlow/Flow)
     api("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.9.0")
 }

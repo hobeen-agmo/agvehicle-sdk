@@ -1,0 +1,74 @@
+// Vehicle.kt — 홈 런처용 차량 상태 도메인 (읽기: Signal / 토글: 제어 세션).
+//
+//   // 읽기 — 생명주기 한 줄
+//   val vehicle = Vehicle(this, object : Vehicle.Listener {
+//       override fun onSpeed(s: VehicleSpeed) = runOnUiThread { render(s.kmh) }
+//       override fun onBattery(b: Battery)    = runOnUiThread { render(b.volts) }
+//       override fun onDpf(d: Dpf)            = runOnUiThread { if (d.warning) showWarn() }
+//   })
+//   lifecycle.addObserver(vehicle)
+//
+//   // 토글 — 제어(쓰기). ⚠️ 데몬 신호 PGN이 제조사 고유 placeholder라 실차 스펙 필요.
+//   val fourwd = Vehicle.fourWd(this) ?: return   // null = 자격 없음/보유 중/미연결
+//   fourwd.set(true)                              // 4WD ON
+//   fourwd.release()
+package farm.agmo.vehicle.vehicle
+
+import android.content.Context
+import farm.agmo.vehicle.sdk.AgVehicle
+import farm.agmo.vehicle.sdk.Signal
+
+class Vehicle(context: Context, private val listener: Listener) : Signal(context) {
+
+    /** 차량 상태 콜백 — 필요한 것만 override */
+    interface Listener {
+        fun onSpeed(speed: VehicleSpeed) {}
+        fun onPto(pto: PtoSpeed) {}
+        fun onBattery(battery: Battery) {}
+        fun onDpf(dpf: Dpf) {}
+    }
+
+    override fun subscriptions(): List<AgVehicle.Subscription> = listOf(
+        vehicle.subscribe(VehicleSpeed.KEY) { it.number?.let { v -> listener.onSpeed(VehicleSpeed(v)) } },
+        vehicle.subscribe(PtoSpeed.KEY)     { it.number?.let { v -> listener.onPto(PtoSpeed(v)) } },
+        vehicle.subscribe(Battery.KEY)      { it.number?.let { v -> listener.onBattery(Battery(v)) } },
+        vehicle.subscribe(Dpf.KEY)          { it.number?.let { v -> listener.onDpf(Dpf(v)) } },
+    )
+
+    companion object {
+        /** 4WD 토글 제어권. set(true/false)로 켜고 끈다. */
+        fun fourWd(context: Context): Toggle? = Toggle.acquire(context, "FOURWD_CMD")
+        /** 선회 시 자동 상승 토글 */
+        fun autoLiftOnTurn(context: Context): Toggle? = Toggle.acquire(context, "AUTOLIFT_TURN_CMD")
+        /** 후진 시 자동 상승 토글 */
+        fun autoLiftOnReverse(context: Context): Toggle? = Toggle.acquire(context, "AUTOLIFT_REV_CMD")
+    }
+}
+
+/** ON/OFF 제어 토글 (히치 제어와 같은 세션 구조 — 토큰·선점) */
+class Toggle internal constructor(private val session: AgVehicle.ControlSession) {
+    private var lostCb: (() -> Unit)? = null
+
+    /** 켜기(true)/끄기(false). false 반환 = 세션 상실 — 다시 acquire */
+    fun set(on: Boolean): Boolean = session.send(if (on) 1L else 0L)
+
+    /** 상위 계층 선점 통지 — 즉시 UI 잠글 것 */
+    fun onLost(cb: () -> Unit) { lostCb = cb }
+
+    /** 반납 (마지막 상태 유지) */
+    fun release() = session.release()
+
+    /** 안전값(off)으로 되돌린 뒤 반납 */
+    fun stopAndRelease() = session.stopAndRelease()
+
+    internal fun fireLost() { lostCb?.invoke() }
+
+    companion object {
+        internal fun acquire(context: Context, key: String): Toggle? {
+            val v = AgVehicle.shared(context)
+            var handle: Toggle? = null
+            val session = v.acquire(key) { handle?.fireLost() } ?: return null
+            return Toggle(session).also { handle = it }
+        }
+    }
+}
