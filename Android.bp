@@ -1,0 +1,63 @@
+// agvehicle-sdk — AOSP 내부 소스 링크용 Android.bp.
+//
+// 외부 개발자는 Gradle + AAR(GitHub Packages) 경로를 쓰지만, AOSP 트리 안의 앱
+// (AgLauncher/AgDashboard)은 각 모듈을 android_library로 소스 링크한다.
+// 이 저장소를 packages/apps/AgVehicleSdk/ 로 복사하면 아래 모듈이 노출된다.
+//
+// AIDL 정본은 core에 있고, 서비스(AgVehicle)는 같은 파일을 tools/sync_aidl.sh로 맞춘다.
+
+// ── core: 연결·제네릭·카탈로그·Signal 베이스 (코루틴 의존 없음) ──
+android_library {
+    name: "agvehicle-sdk-core",
+    srcs: [
+        "core/src/main/kotlin/**/*.kt",
+        "core/src/main/aidl/**/*.aidl",
+    ],
+    aidl: {
+        local_include_dirs: ["core/src/main/aidl"],
+    },
+    manifest: "core/src/main/AndroidManifest.xml",
+    static_libs: ["androidx.lifecycle_lifecycle-common"],
+    sdk_version: "current",
+    min_sdk_version: "28",
+}
+
+// ── 도메인 모듈 (core 위, 콜백) ──
+android_library {
+    name: "agvehicle-sdk-engine",
+    srcs: ["engine/src/main/kotlin/**/*.kt"],
+    manifest: "engine/src/main/AndroidManifest.xml",
+    static_libs: ["agvehicle-sdk-core"],
+    sdk_version: "current",
+    min_sdk_version: "28",
+}
+
+android_library {
+    name: "agvehicle-sdk-hitch",
+    srcs: ["hitch/src/main/kotlin/**/*.kt"],
+    manifest: "hitch/src/main/AndroidManifest.xml",
+    static_libs: ["agvehicle-sdk-core"],
+    sdk_version: "current",
+    min_sdk_version: "28",
+}
+
+android_library {
+    name: "agvehicle-sdk-imu",
+    srcs: ["imu/src/main/kotlin/**/*.kt"],
+    manifest: "imu/src/main/AndroidManifest.xml",
+    static_libs: ["agvehicle-sdk-core"],
+    sdk_version: "current",
+    min_sdk_version: "28",
+}
+
+android_library {
+    name: "agvehicle-sdk-vehicle",
+    srcs: ["vehicle/src/main/kotlin/**/*.kt"],
+    manifest: "vehicle/src/main/AndroidManifest.xml",
+    static_libs: ["agvehicle-sdk-core"],
+    sdk_version: "current",
+    min_sdk_version: "28",
+}
+
+// flow(:flow, 코루틴)는 AOSP 내부 앱에선 콜백을 쓰므로 생략. 필요 시 kotlinx-coroutines
+// 정적 lib과 함께 android_library로 추가.
