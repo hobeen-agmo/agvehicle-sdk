@@ -1,20 +1,27 @@
-// Hitch.kt — 히치 제어 도메인 모듈 (타입 있는 파사드, core 위에 얹힘).
+// Hitch.kt — 히치 도메인 모듈 (읽기 + 제어, core 위에 얹힘).
 //
+//   // 위치 읽기 (자격 불필요)
+//   val sub = Hitch.position(context) { p -> render(p.percent) }
+//
+//   // 제어 (매니페스트에 USES_CONTROL=HITCH_CMD 선언 필요)
 //   val hitch = Hitch.control(context) ?: return   // null = 자격 없음/보유 중/미연결
-//   hitch.setPosition(50.0)                         // % — raw 변환은 SDK가 숨김
 //   hitch.onLost { lockUi() }
+//   hitch.setPosition(50.0)                         // % — raw 변환은 SDK가 숨김
 //   hitch.release()
-//
-// 자격 선언은 앱 매니페스트에 필요:
-//   <meta-data android:name="farm.agmo.vehicle.USES_CONTROL" android:value="HITCH_CMD"/>
 package farm.agmo.vehicle.hitch
 
 import android.content.Context
 import farm.agmo.vehicle.sdk.AgVehicle
 
 object Hitch {
-    /** 데몬 내장 제어 신호 key (agcand signal_defs.cpp) */
-    const val KEY = "HITCH_CMD"
+    /** 데몬 내장 제어 신호 key */
+    const val CONTROL_KEY = "HITCH_CMD"
+
+    /** 현재 히치 위치(%) 스트림. 자격 불필요(읽기). PGN 0xFE45 */
+    fun position(context: Context, onSample: (HitchPosition) -> Unit): AgVehicle.Subscription =
+        AgVehicle.shared(context).subscribe(HitchPosition.KEY) { value ->
+            value.number?.let { onSample(HitchPosition(it)) }
+        }
 
     /**
      * 히치 제어권을 잡는다. null이면 자격 없음(매니페스트 미선언)·상위 보유 중·미연결.
@@ -25,7 +32,7 @@ object Hitch {
         // 선점 통지는 acquire 시점에 등록해야 하므로, 아직 안 만들어진 핸들의 콜백을
         // 지연 참조로 넘긴다(핸들 생성 직후 배선 완료).
         var handle: HitchControl? = null
-        val session = v.acquire(KEY) { handle?.fireLost() } ?: return null
+        val session = v.acquire(CONTROL_KEY) { handle?.fireLost() } ?: return null
         return HitchControl(session).also { handle = it }
     }
 }

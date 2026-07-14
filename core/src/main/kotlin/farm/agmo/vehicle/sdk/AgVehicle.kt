@@ -168,6 +168,27 @@ class AgVehicle private constructor(private val appContext: Context) {
         }
     }
 
+    /**
+     * 한 메시지(신호 여럿)를 함께 구독한다. 신호가 하나라도 갱신되면 그 메시지의
+     * 최신값 맵을 넘긴다 — 도메인 모듈이 타입 있는 "ID별 클래스"로 조립하는 토대.
+     * (한 CAN 메시지의 신호들은 한 프레임으로 같이 오지만 콜백 스레드가 다를 수 있어
+     *  최신값 누적은 동기화한다.) 반환 핸들 close()로 전체 해제.
+     */
+    fun subscribeMessage(keys: List<String>, onValues: (Map<String, Double>) -> Unit): Subscription {
+        val latest = HashMap<String, Double>()
+        val mlock = Any()
+        val subs = keys.map { key ->
+            subscribe(key) { value ->
+                val snapshot: Map<String, Double> = synchronized(mlock) {
+                    value.number?.let { latest[key] = it }
+                    HashMap(latest)
+                }
+                onValues(snapshot)
+            }
+        }
+        return Subscription { subs.forEach { it.close() } }
+    }
+
     /** 신호 staleness(값 끊김) 알림 구독 — 값 구독과 별개로 등록 */
     fun onStale(key: String, cb: (String) -> Unit): Subscription {
         synchronized(lock) { staleSubs.getOrPut(key) { mutableListOf() }.add(cb) }

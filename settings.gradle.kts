@@ -18,4 +18,4 @@ dependencyResolutionManagement {
 rootProject.name = "agvehicle-sdk"
 
 // core = 기반(연결·제네릭·카탈로그). 나머지는 신호 도메인별 모듈(core 위에 얹힘).
-include(":core", ":hitch", ":engine")
+include(":core", ":hitch", ":engine", ":imu")

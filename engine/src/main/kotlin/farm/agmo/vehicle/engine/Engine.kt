@@ -1,37 +1,43 @@
-// Engine.kt — 엔진 읽기 도메인 모듈 (타입 있는 파사드, core 위에 얹힘).
+// Engine.kt — 엔진 읽기 도메인 모듈 (메시지별 파사드, core 위에 얹힘).
 //
-//   val engine = Engine.start(context) { sample ->
-//       if (sample.complete) render(sample.coolantTempC!!, sample.rpm!!)
-//   }
+//   val sub = Engine.eec1(context) { e -> render(e.rpm, e.loadPercent) }
+//   val t   = Engine.temperature(context) { render(it.coolantC) }
 //   // ...
-//   engine.stop()
+//   sub.close(); t.close()
 //
-// 자격 선언 불필요(읽기 전용). core의 공유 연결 위에 ENGTEMP/ENGRPM를 구독하고,
-// 따로 오는 두 값을 EngineSample로 조립해 넘긴다.
+// 자격 선언 불필요(읽기 전용). 각 메시지(PGN)를 구독해 모이면 타입 있는 한 덩어리로 넘긴다.
+// 콜백은 binder 스레드 — UI 갱신은 앱이 post할 것.
 package farm.agmo.vehicle.engine
 
 import android.content.Context
 import farm.agmo.vehicle.sdk.AgVehicle
 
 object Engine {
-    /**
-     * 엔진 신호 스트림 시작. onSample은 값이 하나 갱신될 때마다 최신 스냅샷으로 호출된다
-     * (수온·RPM이 서로 다른 주기로 오므로 sample.complete로 완전성 확인).
-     * 콜백은 binder 스레드 — UI 갱신은 앱이 post할 것.
-     */
-    fun start(context: Context, onSample: (EngineSample) -> Unit): EngineStream {
-        val v = AgVehicle.shared(context)
-        val assembler = EngineAssembler()
-        val subs = EngineAssembler.KEYS.map { key ->
-            v.subscribe(key) { value -> onSample(assembler.update(key, value.number)) }
-        }
-        return EngineStream(subs)
-    }
-}
+    /** EEC1 — 회전수 + 부하 (0xF004) */
+    fun eec1(context: Context, onSample: (Eec1) -> Unit): AgVehicle.Subscription =
+        AgVehicle.shared(context).subscribeMessage(Eec1.KEYS) { Eec1.from(it)?.let(onSample) }
 
-class EngineStream internal constructor(
-    private val subs: List<AgVehicle.Subscription>,
-) {
-    /** 구독 해제 — 더는 값을 받지 않는다 */
-    fun stop() = subs.forEach { it.close() }
+    /** 냉각수온 (0xFEEE) */
+    fun temperature(context: Context, onSample: (EngineTemperature) -> Unit): AgVehicle.Subscription =
+        AgVehicle.shared(context).subscribeMessage(EngineTemperature.KEYS) {
+            EngineTemperature.from(it)?.let(onSample)
+        }
+
+    /** 오일압 (0xFEEF) */
+    fun oilPressure(context: Context, onSample: (EngineOilPressure) -> Unit): AgVehicle.Subscription =
+        AgVehicle.shared(context).subscribeMessage(EngineOilPressure.KEYS) {
+            EngineOilPressure.from(it)?.let(onSample)
+        }
+
+    /** 연료량 (0xFEFC) */
+    fun fuelLevel(context: Context, onSample: (FuelLevel) -> Unit): AgVehicle.Subscription =
+        AgVehicle.shared(context).subscribeMessage(FuelLevel.KEYS) {
+            FuelLevel.from(it)?.let(onSample)
+        }
+
+    /** 누적 가동시간 (0xFEE5) */
+    fun hours(context: Context, onSample: (EngineHours) -> Unit): AgVehicle.Subscription =
+        AgVehicle.shared(context).subscribeMessage(EngineHours.KEYS) {
+            EngineHours.from(it)?.let(onSample)
+        }
 }
