@@ -26,6 +26,7 @@ class Vehicle(context: Context, private val listener: Listener) : Signal(context
         fun onPto(pto: PtoSpeed) {}
         fun onBattery(battery: Battery) {}
         fun onDpf(dpf: Dpf) {}
+        fun onPosition(position: GpsPosition) {}
     }
 
     override fun subscriptions(): List<AgVehicle.Subscription> = listOf(
@@ -33,6 +34,7 @@ class Vehicle(context: Context, private val listener: Listener) : Signal(context
         vehicle.subscribe(PtoSpeed.KEY)     { it.number?.let { v -> listener.onPto(PtoSpeed(v)) } },
         vehicle.subscribe(Battery.KEY)      { it.number?.let { v -> listener.onBattery(Battery(v)) } },
         vehicle.subscribe(Dpf.KEY)          { it.number?.let { v -> listener.onDpf(Dpf(v)) } },
+        vehicle.subscribeMessage(GpsPosition.KEYS) { GpsPosition.from(it)?.let(listener::onPosition) },
     )
 
     companion object {

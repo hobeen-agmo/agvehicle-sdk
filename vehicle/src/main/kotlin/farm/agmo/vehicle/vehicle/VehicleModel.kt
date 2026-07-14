@@ -27,3 +27,14 @@ data class Dpf(val sootPercent: Double) {
     }
     val warning: Boolean get() = sootPercent >= WARN_THRESHOLD
 }
+
+/** GPS 위경도 (deg) — VehiclePosition 0xFEF3. GPS도 CAN 버스로 받는다(안드로이드 위치 API 아님) */
+data class GpsPosition(val latitude: Double, val longitude: Double) {
+    companion object {
+        val KEYS = listOf("GPS_LAT", "GPS_LON")
+        fun from(v: Map<String, Double>): GpsPosition? {
+            val lat = v["GPS_LAT"]; val lon = v["GPS_LON"]
+            return if (lat != null && lon != null) GpsPosition(lat, lon) else null
+        }
+    }
+}

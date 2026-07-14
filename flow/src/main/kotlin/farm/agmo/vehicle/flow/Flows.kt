@@ -76,4 +76,5 @@ object VehicleFlow {
     fun pto(context: Context): Flow<PtoSpeed> = signalFlow(context, PtoSpeed.KEY, ::PtoSpeed)
     fun battery(context: Context): Flow<Battery> = signalFlow(context, Battery.KEY, ::Battery)
     fun dpf(context: Context): Flow<Dpf> = signalFlow(context, Dpf.KEY, ::Dpf)
+    fun position(context: Context): Flow<GpsPosition> = messageFlow(context, GpsPosition.KEYS, GpsPosition::from)
 }
