@@ -58,6 +58,7 @@ import farm.agmo.vehicle.oem.tractor.Tractor     // ← .oem. = 제조사 고유
 | `:vehicle` | 표준 | 홈 런처 상태(차속/PTO/배터리/DPF/GPS) |
 | `:flow` | 표준(옵션) | 위 신호들의 Kotlin Flow 래퍼 |
 | `:gpio` | 표준/플랫폼 | GPIO 하드웨어 IO(아날로그입력·디지털입력·디지털출력). SeamOS GPIO_Prototyping 이관. 데몬은 sysfs/IIO 백엔드(CAN 아님) |
+| `:genericio` | 표준/플랫폼 | 범용 CAN IO 보드(아날로그/디지털 입력, PWM/LED 출력, 0x200~0x204). 범용 하드웨어 능력 |
 | `:oem-tractor` | **AGMO 고유** | 커스텀 트랙터 FNR/변속/PTO/유압/ACC 읽기 + 4WD/AutoLift/히치 제어 |
 | `:oem-steer` | **AGMO 고유** | 조향모터 조향각·모터 상태 읽기 + 조향 명령 |
 | `:oem-spreader` | **AGMO 고유** | 살포기(작업기) 살포율/게이트/섹션 읽기 + 살포율 제어 |
