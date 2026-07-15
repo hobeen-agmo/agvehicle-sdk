@@ -44,3 +44,47 @@ data class GyroRate(val xDegS: Double, val yDegS: Double, val zDegS: Double) {
         }
     }
 }
+
+// ── Aceinna MTLT305 설정/진단 (표준 자세는 표준 :imu가 담당) ──
+
+/** MTLT305 센서 health (0x18FF5480). 각 비트의 정상/결함 극성은 Aceinna MTLT305 데이터시트 기준. */
+data class ImuSensorStatus(
+    val master: Boolean, val hardware: Boolean, val software: Boolean,
+    val sensor: Boolean, val algoInit: Boolean, val overRange: Boolean,
+) {
+    companion object {
+        val KEYS = listOf(
+            "aceinna_mtlt305:Aceinna_Master_Status", "aceinna_mtlt305:Aceinna_Hardware_Status",
+            "aceinna_mtlt305:Aceinna_Software_Status", "aceinna_mtlt305:Aceinna_Sensor_Status",
+            "aceinna_mtlt305:Aceinna_Algo_Init", "aceinna_mtlt305:Aceinna_Sensor_Over_Range",
+        )
+        fun from(v: Map<String, Double>): ImuSensorStatus? {
+            val m = v["aceinna_mtlt305:Aceinna_Master_Status"]; val h = v["aceinna_mtlt305:Aceinna_Hardware_Status"]
+            val s = v["aceinna_mtlt305:Aceinna_Software_Status"]; val se = v["aceinna_mtlt305:Aceinna_Sensor_Status"]
+            val a = v["aceinna_mtlt305:Aceinna_Algo_Init"]; val o = v["aceinna_mtlt305:Aceinna_Sensor_Over_Range"]
+            return if (m != null && h != null && s != null && se != null && a != null && o != null)
+                ImuSensorStatus(m != 0.0, h != 0.0, s != 0.0, se != 0.0, a != 0.0, o != 0.0) else null
+        }
+    }
+}
+
+/** MTLT305 펌웨어 버전 (0x18FEDA80) */
+data class ImuFirmwareVersion(
+    val major: Int, val minor: Int, val patch: Int, val stage: Int, val build: Int,
+) {
+    val version: String get() = "$major.$minor.$patch"
+    companion object {
+        val KEYS = listOf(
+            "aceinna_mtlt305:Aceinna_Firm_Version_Major", "aceinna_mtlt305:Aceinna_Firm_Version_Minor",
+            "aceinna_mtlt305:Aceinna_Firm_Version_Patch", "aceinna_mtlt305:Aceinna_Firm_Version_Stage",
+            "aceinna_mtlt305:Aceinna_Firm_Version_Build",
+        )
+        fun from(v: Map<String, Double>): ImuFirmwareVersion? {
+            val mj = v["aceinna_mtlt305:Aceinna_Firm_Version_Major"]; val mn = v["aceinna_mtlt305:Aceinna_Firm_Version_Minor"]
+            val p = v["aceinna_mtlt305:Aceinna_Firm_Version_Patch"]; val st = v["aceinna_mtlt305:Aceinna_Firm_Version_Stage"]
+            val b = v["aceinna_mtlt305:Aceinna_Firm_Version_Build"]
+            return if (mj != null && mn != null && p != null && st != null && b != null)
+                ImuFirmwareVersion(mj.toInt(), mn.toInt(), p.toInt(), st.toInt(), b.toInt()) else null
+        }
+    }
+}

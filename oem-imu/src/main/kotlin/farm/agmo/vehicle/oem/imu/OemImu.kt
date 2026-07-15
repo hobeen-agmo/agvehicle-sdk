@@ -18,16 +18,22 @@ import farm.agmo.vehicle.sdk.Signal
 
 class OemImu(context: Context, private val listener: Listener) : Signal(context) {
 
-    /** 제조사 고유 자이로 콜백 — 필요한 메시지만 override */
+    /** 제조사 고유 자이로/IMU진단 콜백 — 필요한 메시지만 override */
     interface Listener {
+        // Allynav R70 보조 자이로
         fun onAngle(angle: GyroAngle) {}
         fun onAccel(accel: GyroAccel) {}
         fun onRate(rate: GyroRate) {}
+        // Aceinna MTLT305 설정/진단 (자세 데이터는 표준 :imu)
+        fun onSensorStatus(status: ImuSensorStatus) {}
+        fun onFirmwareVersion(fw: ImuFirmwareVersion) {}
     }
 
     override fun subscriptions(): List<AgVehicle.Subscription> = listOf(
         vehicle.subscribeMessage(GyroAngle.KEYS) { GyroAngle.from(it)?.let(listener::onAngle) },
         vehicle.subscribeMessage(GyroAccel.KEYS) { GyroAccel.from(it)?.let(listener::onAccel) },
         vehicle.subscribeMessage(GyroRate.KEYS)  { GyroRate.from(it)?.let(listener::onRate) },
+        vehicle.subscribeMessage(ImuSensorStatus.KEYS)    { ImuSensorStatus.from(it)?.let(listener::onSensorStatus) },
+        vehicle.subscribeMessage(ImuFirmwareVersion.KEYS) { ImuFirmwareVersion.from(it)?.let(listener::onFirmwareVersion) },
     )
 }
