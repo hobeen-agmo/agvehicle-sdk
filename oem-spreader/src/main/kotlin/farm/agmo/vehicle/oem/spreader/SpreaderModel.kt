@@ -1,41 +1,50 @@
-// SpreaderModel.kt — AGMO RDA_Spreader 메시지(ID)별 데이터 클래스 (순수 — JVM 테스트 대상).
+// SpreaderModel.kt — AGMO RDA Spreader(살포기) 메시지별 데이터 (순수 — JVM 테스트 대상).
 //
-// "CAN 메시지(ID) 하나 = 클래스 하나" 원칙. 살포기(작업기) 신호:
-//   살포율 → SpreadRate(현재 kg/ha)
-//   게이트 → GateStatus(개폐 위치 %)
-//   섹션   → SectionStatus(섹션별 on/off 비트)
+// 값 출처: AGMO 1차 설계(Spreader Machine Interface, Customer=AGMO Inc., Requestor Dongseok
+//   Choi 2025-02-06) + Spreader_CAN.dbc. 데몬 카탈로그 키 "agmo_spreader:<signal>".
 //
-// ⚠️ 골격 단계(C): 키/스케일 플레이스홀더. 실제 키·raw 스케일은 (B) 깨끗한 소스
-//   (AGMO 1차 CAN 스펙) 확정 후 채운다. 디컴파일 추출본 미채택(reference/README 규율). — TODO(B)
+// 살포기 프로토콜(문서/DBC 확정): 살포 모터 모드 제어(WRITE) + GNSS 위치·시간/상태(READ).
 //
 // 🏭 AGMO 제조사 고유 (proprietary) — 표준 아님. oem 네임스페이스. docs/sdk-conventions.md 참조.
 package farm.agmo.vehicle.oem.spreader
 
-/** 현재 살포율 (kg/ha) */
-data class SpreadRate(val kgPerHa: Double) {
+/** 살포 모터 구동 모드 — 문서: 0x81 Manual, 0x82 Spreading, 0x84 Stop */
+enum class DriveMode(val code: Int) {
+    MANUAL(0x81), SPREADING(0x82), STOP(0x84);
+}
+
+/** GNSS fix 상태 — 문서: 1=Single, 4=Float, 5=Fix */
+enum class GnssFix(val code: Int) {
+    SINGLE(1), FLOAT(4), FIX(5), UNKNOWN(-1);
+    companion object { fun of(c: Int) = entries.firstOrNull { it.code == c } ?: UNKNOWN }
+}
+
+/** GNSS 위치 (deg) — 0x18FF2800. raw*1e-7 (DBC 정의 그대로). */
+data class GnssPosition(val latitudeDeg: Double, val longitudeDeg: Double) {
     companion object {
-        const val KEY = "SPREADER_RATE"   // TODO(B): 실제 키 확정
-        fun from(v: Map<String, Double>): SpreadRate? =
-            v[KEY]?.let { SpreadRate(it) }
+        val KEYS = listOf("agmo_spreader:Latitude", "agmo_spreader:Longitude")
+        fun from(v: Map<String, Double>): GnssPosition? {
+            val la = v["agmo_spreader:Latitude"]; val lo = v["agmo_spreader:Longitude"]
+            return if (la != null && lo != null) GnssPosition(la, lo) else null
+        }
     }
 }
 
-/** 게이트 개폐 위치 (0~100%) */
-data class GateStatus(val openPercent: Double) {
+/** GNSS 시간/상태 — 0x18FF2801. gmt=HHMMSS, fix=상태, heartbeat=증가 카운터 */
+data class GnssTimeStatus(val gmt: Long, val fix: GnssFix, val heartbeat: Int) {
     companion object {
-        const val KEY = "SPREADER_GATE"   // TODO(B): 실제 키 확정
-        fun from(v: Map<String, Double>): GateStatus? =
-            v[KEY]?.let { GateStatus(it) }
+        val KEYS = listOf("agmo_spreader:GreenwichMeanTime", "agmo_spreader:GnssStatus", "agmo_spreader:HeartBeat")
+        fun from(v: Map<String, Double>): GnssTimeStatus? {
+            val t = v["agmo_spreader:GreenwichMeanTime"]; val s = v["agmo_spreader:GnssStatus"]; val h = v["agmo_spreader:HeartBeat"]
+            return if (t != null && s != null && h != null)
+                GnssTimeStatus(t.toLong(), GnssFix.of(s.toInt()), h.toInt()) else null
+        }
     }
 }
 
-/** 섹션 on/off 상태 (비트마스크 — 섹션 i가 켜졌으면 bit i=1) */
-data class SectionStatus(val mask: Long) {
-    fun isOn(section: Int): Boolean = section in 0..63 && (mask shr section) and 1L == 1L
-
-    companion object {
-        const val KEY = "SPREADER_SECTIONS"   // TODO(B): 실제 키 확정
-        fun from(v: Map<String, Double>): SectionStatus? =
-            v[KEY]?.let { SectionStatus(it.toLong()) }
-    }
+/** 살포 모터 제어 키 — DriveMode(byte0)+MotorEnable(byte1) 결합 16bit(MotorCommand). */
+internal object SpreaderControlKeys {
+    const val MOTOR = "agmo_spreader:MotorCommand"
+    /** raw = DriveMode | (enable<<8) — 한 프레임에 모드+enable 원자적 송신 */
+    fun encode(mode: DriveMode, enable: Boolean): Long = (mode.code or (if (enable) 1 shl 8 else 0)).toLong()
 }
