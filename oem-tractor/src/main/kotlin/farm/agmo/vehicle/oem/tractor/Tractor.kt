@@ -2,23 +2,29 @@
 //
 //   // 상태 읽기 (자격 불필요) — 생명주기 한 줄
 //   val tractor = Tractor(this, object : Tractor.Listener {
-//       override fun onFnr(f: Fnr)          = runOnUiThread { render(f.direction) }
-//       override fun onShift(s: Shift)      = runOnUiThread { render(s.gear) }
-//       override fun onHydraulic(h: Hydraulic) = runOnUiThread { render(h.pressure) }
+//       override fun onFnr(f: Fnr)                = runOnUiThread { render(f.direction) }
+//       override fun onRangeShift(r: RangeShift)  = runOnUiThread { render(r.gear) }
+//       override fun onPto(p: Pto)                = runOnUiThread { render(p.mode) }
 //   })
-//   lifecycle.addObserver(tractor)          // ON_START 자동 구독 / ON_STOP 자동 해제
+//   lifecycle.addObserver(tractor)
 //
-//   // 제어 (매니페스트에 USES_CONTROL 선언 필요) — 읽기와 성격이 달라 세션 핸들로
-//   val fourwd = Tractor.fourWd(this) ?: return   // null = 자격 없음/보유 중/미연결
-//   fourwd.set(true)                              // 4WD ON
-//   fourwd.release()
+//   // 제어 (매니페스트에 USES_CONTROL 선언 필요) — 서브시스템별 세션
+//   val fnr = Tractor.fnrControl(this) ?: return
+//   fnr.set(FnrDirection.FORWARD)     // 수동 지령(mode byte=Manual 기본). false=세션 상실
+//   fnr.release()
+//   val hitch = Tractor.hitchControl(this) ?: return
+//   hitch.setPosition(80.0)           // 유압 히치 0~100%
 //
-// ⚠️ 골격 단계(C): 읽기 키는 플레이스홀더(TractorModel의 TODO(B)). 제어 키는 데몬의
-//   기존 placeholder 제어 신호(FOURWD_CMD 등, 0xEF01~)를 그대로 쓴다 — 이 키 이름은
-//   SDK 호환을 위해 유지하고, 내부 PGN/raw는 (B)에서 실 제조사 프레임으로 매핑된다.
+// 제어 프로토콜(문서/DBC 확정): FNR / RangeShift(SFT) / PTO / Hitch(HYD %) / Accelerator(%).
+//   각 _Command는 value(byte0)+mode(byte1). SDK는 value 신호를 지령하며 mode는 데몬 기본
+//   0=Manual(수동 오버라이드) — 앱 제어의 정상 의미. (auto 모드 활성은 이 setter 범위 밖.)
 //
-// 🏭 AGMO 제조사 고유 (proprietary) — 공개 J1939/ISO 표준 도메인이 아니다. 표준 모듈
-//   (engine/hitch/imu/vehicle)과 섞지 않으며 oem 네임스페이스로 분리된다. docs/sdk-conventions.md 참조.
+// ⚠️ 4WD: AGMO 트랙터 CAN 프로토콜에 대응 신호 없음(로컬 DBC·설계문서·NEVONEX 추출·SeamOS
+//   카탈로그 4곳 전수검색 0건). 런처 FOURWD 토글은 CAN 미연결 — 제어 메서드를 두지 않는다.
+// ⚠️ Auto Lift on Turn/Reverse: 별도 CAN 신호가 아니라 Hitch(setPosition)로 선회·후진 시
+//   히치를 자동 상승시키는 앱 레벨 기능. Turn/Rev 구분은 앱/런처 상위 로직. 여기선 Hitch만 노출.
+//
+// 🏭 AGMO 제조사 고유 (proprietary) — 표준 아님. oem 네임스페이스. docs/sdk-conventions.md 참조.
 package farm.agmo.vehicle.oem.tractor
 
 import android.content.Context
@@ -30,88 +36,83 @@ class Tractor(context: Context, private val listener: Listener) : Signal(context
     /** 트랙터 상태 콜백 — 필요한 메시지만 override */
     interface Listener {
         fun onFnr(fnr: Fnr) {}
-        fun onShift(shift: Shift) {}
-        fun onPto(pto: PtoState) {}
+        fun onRangeShift(rangeShift: RangeShift) {}
+        fun onPto(pto: Pto) {}
         fun onHydraulic(hydraulic: Hydraulic) {}
-        fun onAcc(acc: Acc) {}
+        fun onAccelerator(accelerator: Accelerator) {}
     }
 
     override fun subscriptions(): List<AgVehicle.Subscription> = listOf(
-        vehicle.subscribe(Fnr.KEY)        { it.number?.let { v -> Fnr.from(mapOf(Fnr.KEY to v))?.let(listener::onFnr) } },
-        vehicle.subscribe(Shift.KEY)      { it.number?.let { v -> listener.onShift(Shift(v.toInt())) } },
-        vehicle.subscribeMessage(PtoState.KEYS) { PtoState.from(it)?.let(listener::onPto) },
-        vehicle.subscribe(Hydraulic.KEY)  { it.number?.let { v -> listener.onHydraulic(Hydraulic(v)) } },
-        vehicle.subscribe(Acc.KEY)        { it.number?.let { v -> listener.onAcc(Acc(v)) } },
+        vehicle.subscribeMessage(Fnr.KEYS)         { Fnr.from(it)?.let(listener::onFnr) },
+        vehicle.subscribeMessage(RangeShift.KEYS)  { RangeShift.from(it)?.let(listener::onRangeShift) },
+        vehicle.subscribeMessage(Pto.KEYS)         { Pto.from(it)?.let(listener::onPto) },
+        vehicle.subscribeMessage(Hydraulic.KEYS)   { Hydraulic.from(it)?.let(listener::onHydraulic) },
+        vehicle.subscribeMessage(Accelerator.KEYS) { Accelerator.from(it)?.let(listener::onAccelerator) },
     )
 
     companion object {
-        // 데몬 내장 제어 신호 key — SDK 호환 위해 기존 이름 유지(내부 PGN/raw는 (B) 매핑).
-        const val FOURWD_KEY = "FOURWD_CMD"
-        const val AUTOLIFT_TURN_KEY = "AUTOLIFT_TURN_CMD"
-        const val AUTOLIFT_REV_KEY = "AUTOLIFT_REV_CMD"
-        const val HITCH_KEY = "HITCH_CMD"
+        /** 전후진 제어권. set(FnrDirection). null=자격 없음/보유 중/미연결 */
+        fun fnrControl(context: Context): FnrControl? =
+            acquire(context, TractorControlKeys.FNR)?.let(::FnrControl)
 
-        /** 4WD 토글 제어권. set(true/false). null = 자격 없음/보유 중/미연결 */
-        fun fourWd(context: Context): TractorToggle? = TractorToggle.acquire(context, FOURWD_KEY)
+        /** 변속 레인지 제어권. set(RangeGear) */
+        fun rangeShiftControl(context: Context): RangeShiftControl? =
+            acquire(context, TractorControlKeys.RANGE_SHIFT)?.let(::RangeShiftControl)
 
-        /** 선회 시 자동 상승 토글 */
-        fun autoLiftOnTurn(context: Context): TractorToggle? = TractorToggle.acquire(context, AUTOLIFT_TURN_KEY)
+        /** PTO 제어권. set(PtoMode) */
+        fun ptoControl(context: Context): PtoControl? =
+            acquire(context, TractorControlKeys.PTO)?.let(::PtoControl)
 
-        /** 후진 시 자동 상승 토글 */
-        fun autoLiftOnReverse(context: Context): TractorToggle? = TractorToggle.acquire(context, AUTOLIFT_REV_KEY)
+        /** 유압 히치 제어권. setPosition(0~100%). AutoLift 앱 기능도 이걸 사용. */
+        fun hitchControl(context: Context): HitchControl? =
+            acquire(context, TractorControlKeys.HITCH)?.let(::HitchControl)
 
-        /** 히치 제어권 — 위치(%) 지시 */
-        fun hitch(context: Context): TractorHitchControl? {
-            val v = AgVehicle.shared(context)
-            var handle: TractorHitchControl? = null
-            val session = v.acquire(HITCH_KEY) { handle?.fireLost() } ?: return null
-            return TractorHitchControl(session).also { handle = it }
-        }
+        /** 가속 제어권. setPercent(0~100%) */
+        fun acceleratorControl(context: Context): AcceleratorControl? =
+            acquire(context, TractorControlKeys.ACCELERATOR)?.let(::AcceleratorControl)
+
+        private fun acquire(context: Context, key: String): AgVehicle.ControlSession? =
+            AgVehicle.shared(context).acquire(key)
     }
 }
 
-/** ON/OFF 제어 토글 (히치 제어와 같은 세션 구조 — 토큰·선점). 4WD·AutoLift에 사용 */
-class TractorToggle internal constructor(private val session: AgVehicle.ControlSession) {
+/** 제어 세션 공통 골격 (토큰·선점은 core ControlSession이 관리) */
+abstract class TractorControl internal constructor(
+    protected val session: AgVehicle.ControlSession,
+) {
     private var lostCb: (() -> Unit)? = null
-
-    /** 켜기(true)/끄기(false). false = 세션 상실 — 다시 acquire */
-    fun set(on: Boolean): Boolean = session.send(if (on) 1L else 0L)
-
     /** 상위 계층 선점 통지 — 즉시 UI 잠글 것 */
     fun onLost(cb: () -> Unit) { lostCb = cb }
-
-    /** 반납 (마지막 상태 유지) */
+    /** 정상 반납 */
     fun release() = session.release()
-
-    /** 안전값(off)으로 되돌린 뒤 반납 */
+    /** 안전값 송신 후 반납(데몬 정의에 safe 센티넬이 있을 때) */
     fun stopAndRelease() = session.stopAndRelease()
-
     internal fun fireLost() { lostCb?.invoke() }
-
-    companion object {
-        internal fun acquire(context: Context, key: String): TractorToggle? {
-            val v = AgVehicle.shared(context)
-            var handle: TractorToggle? = null
-            val session = v.acquire(key) { handle?.fireLost() } ?: return null
-            return TractorToggle(session).also { handle = it }
-        }
-    }
+    protected fun send(raw: Long): Boolean = session.send(raw)
 }
 
-/** 히치 위치(%) 제어 — HitchControl과 같은 구조 */
-class TractorHitchControl internal constructor(private val session: AgVehicle.ControlSession) {
-    private var lostCb: (() -> Unit)? = null
+/** 전후진 지령 — 수동(mode=Manual) 값 지령 */
+class FnrControl internal constructor(s: AgVehicle.ControlSession) : TractorControl(s) {
+    /** false = 세션 상실 — fnrControl부터 다시 */
+    fun set(direction: FnrDirection): Boolean = send(direction.code.toLong())
+}
 
-    /** 히치 위치 지시 (0~100%). false = 세션 상실 */
-    fun setPosition(percent: Double): Boolean = session.send(toRaw(percent))
+/** 변속 레인지 지령 */
+class RangeShiftControl internal constructor(s: AgVehicle.ControlSession) : TractorControl(s) {
+    fun set(gear: RangeGear): Boolean = send(gear.code.toLong())
+}
 
-    fun onLost(cb: () -> Unit) { lostCb = cb }
-    fun release() = session.release()
-    fun stopAndRelease() = session.stopAndRelease()
-    internal fun fireLost() { lostCb?.invoke() }
+/** PTO 지령 */
+class PtoControl internal constructor(s: AgVehicle.ControlSession) : TractorControl(s) {
+    fun set(mode: PtoMode): Boolean = send(mode.code.toLong())
+}
 
-    // debt: 위치%→raw 변환이 플레이스홀더(항등·클램프만)다. 트리거: (B) 깨끗한 소스로
-    //   실 resolution/RAW_MAX 확정 시 hitch 모듈의 HitchScale처럼 교체.
-    private fun toRaw(percent: Double): Long =
-        percent.toLong().coerceIn(0, 100)   // TODO(B): 실제 스케일 적용
+/** 유압 히치 위치 지령 (0~100%). AD_HYD_CMD가 0~100 직접값이라 raw=클램프된 정수%. */
+class HitchControl internal constructor(s: AgVehicle.ControlSession) : TractorControl(s) {
+    fun setPosition(percent: Double): Boolean = send(percent.toLong().coerceIn(0, 100))
+}
+
+/** 가속 지령 (0~100%) */
+class AcceleratorControl internal constructor(s: AgVehicle.ControlSession) : TractorControl(s) {
+    fun setPercent(percent: Double): Boolean = send(percent.toLong().coerceIn(0, 100))
 }

@@ -1,73 +1,95 @@
-// TractorModel.kt — AGMO Customized Tractor 메시지(ID)별 데이터 클래스 (순수 — JVM 테스트 대상).
+// TractorModel.kt — AGMO Customized Tractor 메시지별 데이터 (순수 — JVM 테스트 대상).
 //
-// "CAN 메시지(ID) 하나 = 클래스 하나" 원칙(엔진/IMU 모듈과 동일). AGMO 커스텀 트랙터의
-// 상태 신호는 여러 CAN 메시지로 흩어져 온다:
-//   FNR  → Fnr(전/중립/후진 상태)
-//   SFT  → Shift(변속단)
-//   PTO  → PtoState(PTO 결합·회전)     (홈 런처 PtoSpeed(rpm)와 다른 트랙터 고유 상태)
-//   HYD  → Hydraulic(유압)
-//   ACC  → Acc(가속/스로틀)
+// 값 출처: AGMO 1차 설계(NEVONEX Machine Interface Requirement, Customer=AGMO Inc.,
+//   Requestor Dongseok Choi 2025-02-06) + AGMO_CustomizedTractor.dbc. 데몬 카탈로그 키는
+//   "agmo_customized_tractor:<signal>". 데몬이 스케일 적용한 물리값을 전달한다.
 //
-// ⚠️ 골격 단계(C): 키/스케일은 플레이스홀더다. 실제 agcand 카탈로그 키와 raw 스케일은
-//   깨끗한 소스(AGMO 1차 CAN DBC/스펙)가 확정된 뒤 (B)에서 채운다 — TODO(B) 표식.
-//   NEVONEX 디컴파일 추출본의 신호명/비트값을 그대로 옮기지 않는다(reference/README 규율).
+// 상태 읽기(0x4xx): FNR/RangeShift(SFT)/PTO/Hydraulic(HYD)/Accelerator(ACC).
+//   각 메시지에 State/Mode(auto) + 진단 전압(SIG1_V/SIG2_V) 포함.
 //
 // 🏭 AGMO 제조사 고유 (proprietary) — 표준 아님. oem 네임스페이스. docs/sdk-conventions.md 참조.
 package farm.agmo.vehicle.oem.tractor
 
-/** 전후진(FNR) 방향 */
-enum class FnrDirection { FORWARD, NEUTRAL, REVERSE, UNKNOWN }
+private const val APP = "agmo_customized_tractor"
 
-/** 전후진 상태 — FNR 메시지 */
-data class Fnr(val direction: FnrDirection) {
-    companion object {
-        // TODO(B): 실제 agcand 신호 키로 확정. 현재는 플레이스홀더(추출본 미사용).
-        const val KEY = "TRACTOR_FNR"
-
-        /** 데몬 물리값 → 방향. TODO(B): 실제 상태 코드 매핑 확정 후 교체 */
-        fun from(v: Map<String, Double>): Fnr? =
-            v[KEY]?.let { Fnr(decodeDirection(it)) }
-
-        // debt: FNR 상태 코드→enum 매핑이 플레이스홀더다. 트리거: (B) 깨끗한 소스 확정.
-        private fun decodeDirection(@Suppress("UNUSED_PARAMETER") code: Double): FnrDirection =
-            FnrDirection.UNKNOWN
-    }
+/** 전후진(FNR) 방향 — 문서: 1=R, 2=N, 3=F */
+enum class FnrDirection(val code: Int) {
+    REVERSE(1), NEUTRAL(2), FORWARD(3), UNKNOWN(-1);
+    companion object { fun of(c: Int) = entries.firstOrNull { it.code == c } ?: UNKNOWN }
 }
 
-/** 변속단(SFT) 상태 */
-data class Shift(val gear: Int) {
-    companion object {
-        const val KEY = "TRACTOR_SHIFT"   // TODO(B): 실제 키 확정
-        fun from(v: Map<String, Double>): Shift? =
-            v[KEY]?.let { Shift(it.toInt()) }
-    }
+/** 변속 레인지(RangeShift/SFT) — 문서: 1=Low, 2=Mid, 3=High */
+enum class RangeGear(val code: Int) {
+    LOW(1), MID(2), HIGH(3), UNKNOWN(-1);
+    companion object { fun of(c: Int) = entries.firstOrNull { it.code == c } ?: UNKNOWN }
 }
 
-/** PTO 결합/회전 상태(트랙터 고유) — 홈 런처의 PtoSpeed(rpm)와 별개 메시지 */
-data class PtoState(val engaged: Boolean, val rpm: Double) {
+/** PTO 상태 — 문서: 1=OFF, 2=ON, 3=Auto ON */
+enum class PtoMode(val code: Int) {
+    OFF(1), ON(2), AUTO_ON(3), UNKNOWN(-1);
+    companion object { fun of(c: Int) = entries.firstOrNull { it.code == c } ?: UNKNOWN }
+}
+
+/** 전후진 상태 (0x410) — 방향 + auto 모드 여부 */
+data class Fnr(val direction: FnrDirection, val auto: Boolean) {
     companion object {
-        val KEYS = listOf("TRACTOR_PTO_ENGAGED", "TRACTOR_PTO_RPM")   // TODO(B): 실제 키 확정
-        fun from(v: Map<String, Double>): PtoState? {
-            val eng = v["TRACTOR_PTO_ENGAGED"]; val rpm = v["TRACTOR_PTO_RPM"]
-            return if (eng != null && rpm != null) PtoState(eng != 0.0, rpm) else null
+        val KEYS = listOf("$APP:TRZ_FNR_STATE", "$APP:TRZ_FNR_AUTO")
+        fun from(v: Map<String, Double>): Fnr? {
+            val s = v["$APP:TRZ_FNR_STATE"]; val a = v["$APP:TRZ_FNR_AUTO"]
+            return if (s != null && a != null) Fnr(FnrDirection.of(s.toInt()), a != 0.0) else null
         }
     }
 }
 
-/** 유압(HYD) 상태 */
-data class Hydraulic(val pressure: Double) {
+/** 변속 레인지 상태 (0x420) */
+data class RangeShift(val gear: RangeGear, val auto: Boolean) {
     companion object {
-        const val KEY = "TRACTOR_HYD"   // TODO(B): 실제 키 확정
-        fun from(v: Map<String, Double>): Hydraulic? =
-            v[KEY]?.let { Hydraulic(it) }
+        val KEYS = listOf("$APP:TRZ_SFT_STATE", "$APP:TRZ_SFT_AUTO")
+        fun from(v: Map<String, Double>): RangeShift? {
+            val s = v["$APP:TRZ_SFT_STATE"]; val a = v["$APP:TRZ_SFT_AUTO"]
+            return if (s != null && a != null) RangeShift(RangeGear.of(s.toInt()), a != 0.0) else null
+        }
     }
 }
 
-/** 가속/스로틀(ACC) 상태 */
-data class Acc(val percent: Double) {
+/** PTO 상태 (0x430) */
+data class Pto(val mode: PtoMode, val auto: Boolean) {
     companion object {
-        const val KEY = "TRACTOR_ACC"   // TODO(B): 실제 키 확정
-        fun from(v: Map<String, Double>): Acc? =
-            v[KEY]?.let { Acc(it) }
+        val KEYS = listOf("$APP:TRZ_PTO_STATE", "$APP:TRZ_PTO_AUTO")
+        fun from(v: Map<String, Double>): Pto? {
+            val s = v["$APP:TRZ_PTO_STATE"]; val a = v["$APP:TRZ_PTO_AUTO"]
+            return if (s != null && a != null) Pto(PtoMode.of(s.toInt()), a != 0.0) else null
+        }
     }
+}
+
+/** 유압/히치 피드백 (0x480) — 슬라이드 전압(V) + auto. 목표 위치%는 제어(setHitch) 쪽. */
+data class Hydraulic(val sig1V: Double, val sig2V: Double, val auto: Boolean) {
+    companion object {
+        val KEYS = listOf("$APP:TRZ_HYD_SIG1_V", "$APP:TRZ_HYD_SIG2_V", "$APP:TRZ_HYD_AUTO")
+        fun from(v: Map<String, Double>): Hydraulic? {
+            val s1 = v["$APP:TRZ_HYD_SIG1_V"]; val s2 = v["$APP:TRZ_HYD_SIG2_V"]; val a = v["$APP:TRZ_HYD_AUTO"]
+            return if (s1 != null && s2 != null && a != null) Hydraulic(s1, s2, a != 0.0) else null
+        }
+    }
+}
+
+/** 가속 피드백 (0x490) — 페달 전압(V) + auto */
+data class Accelerator(val sig1V: Double, val sig2V: Double, val auto: Boolean) {
+    companion object {
+        val KEYS = listOf("$APP:TRZ_ACC_SIG1_V", "$APP:TRZ_ACC_SIG2_V", "$APP:TRZ_ACC_AUTO")
+        fun from(v: Map<String, Double>): Accelerator? {
+            val s1 = v["$APP:TRZ_ACC_SIG1_V"]; val s2 = v["$APP:TRZ_ACC_SIG2_V"]; val a = v["$APP:TRZ_ACC_AUTO"]
+            return if (s1 != null && s2 != null && a != null) Accelerator(s1, s2, a != 0.0) else null
+        }
+    }
+}
+
+/** 제어(WRITE) 신호 키 — 각 *_CMD 값 신호(byte0). mode(byte1)는 데몬 기본 0=Manual. */
+internal object TractorControlKeys {
+    const val FNR = "$APP:AD_FNR_CMD"
+    const val RANGE_SHIFT = "$APP:AD_SFT_CMD"
+    const val PTO = "$APP:AD_PTO_CMD"
+    const val HITCH = "$APP:AD_HYD_CMD"       // 유압 히치 슬라이드 0~100%
+    const val ACCELERATOR = "$APP:AD_ACC_CMD"
 }
