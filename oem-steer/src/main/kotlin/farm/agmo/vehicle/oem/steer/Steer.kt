@@ -5,10 +5,9 @@
 //   })
 //   lifecycle.addObserver(steer)
 //
-// ✅ 지원: 조향모터 상태/결함(Motor_Heartbeat).
-// ⏸ 보류: 조향각 읽기 + 조향 명령 — Keya CANopen SDO 멀티플렉서라 agcand 평면 코덱으로
-//   표현 불가(SteerModel 참조). 조향각/제어는 데몬 멀티플렉서 지원 또는 Keya 정식 피드백/
-//   명령 레이아웃 확보 후 추가한다. 여기선 상태/결함만 노출.
+// ✅ 지원: 조향모터 상태/결함(Motor_Heartbeat) + 조향각/속도/온도/전압(Motor_Response SDO, mux).
+// ⏸ 보류: 조향 명령 — Keya SDO 명령(Motor_Request 0x06000001)의 실제 인코딩(멀티플렉서 코드별
+//   payload)은 정식 명령 레이아웃 확보 후 추가. 여기선 읽기만 노출.
 //
 // 🏭 AGMO 제조사 고유 (proprietary) — 표준 아님. oem 네임스페이스. docs/sdk-conventions.md 참조.
 package farm.agmo.vehicle.oem.steer
@@ -19,12 +18,20 @@ import farm.agmo.vehicle.sdk.Signal
 
 class Steer(context: Context, private val listener: Listener) : Signal(context) {
 
-    /** 조향모터 콜백 — 필요한 메시지만 override */
+    /** 조향모터 콜백 — 필요한 메시지만 override. SDO 값은 각기 다른 시점에 도착. */
     interface Listener {
         fun onMotorStatus(status: SteerMotorStatus) {}
+        fun onAngle(angle: SteerAngle) {}
+        fun onSpeed(speed: SteerSpeed) {}
+        fun onTemperature(temperature: SteerTemperature) {}
+        fun onVoltage(voltage: SteerVoltage) {}
     }
 
     override fun subscriptions(): List<AgVehicle.Subscription> = listOf(
         vehicle.subscribeMessage(SteerMotorStatus.KEYS) { SteerMotorStatus.from(it)?.let(listener::onMotorStatus) },
+        vehicle.subscribe(SteerAngle.KEY)       { it.number?.let { v -> listener.onAngle(SteerAngle(v)) } },
+        vehicle.subscribe(SteerSpeed.KEY)       { it.number?.let { v -> listener.onSpeed(SteerSpeed(v)) } },
+        vehicle.subscribe(SteerTemperature.KEY) { it.number?.let { v -> listener.onTemperature(SteerTemperature(v)) } },
+        vehicle.subscribe(SteerVoltage.KEY)     { it.number?.let { v -> listener.onVoltage(SteerVoltage(v)) } },
     )
 }
