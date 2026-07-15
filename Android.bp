@@ -59,5 +59,60 @@ android_library {
     min_sdk_version: "28",
 }
 
+android_library {
+    name: "agvehicle-sdk-gpio",
+    srcs: ["gpio/src/main/kotlin/**/*.kt"],
+    manifest: "gpio/src/main/AndroidManifest.xml",
+    static_libs: ["agvehicle-sdk-core"],
+    sdk_version: "current",
+    min_sdk_version: "28",
+}
+
+// ── OEM 도메인 모듈 (제조사 고유, core 위, 콜백) ──
+android_library {
+    name: "agvehicle-sdk-oem-tractor",
+    srcs: ["oem-tractor/src/main/kotlin/**/*.kt"],
+    manifest: "oem-tractor/src/main/AndroidManifest.xml",
+    static_libs: ["agvehicle-sdk-core"],
+    sdk_version: "current",
+    min_sdk_version: "28",
+}
+
+android_library {
+    name: "agvehicle-sdk-oem-steer",
+    srcs: ["oem-steer/src/main/kotlin/**/*.kt"],
+    manifest: "oem-steer/src/main/AndroidManifest.xml",
+    static_libs: ["agvehicle-sdk-core"],
+    sdk_version: "current",
+    min_sdk_version: "28",
+}
+
+android_library {
+    name: "agvehicle-sdk-oem-spreader",
+    srcs: ["oem-spreader/src/main/kotlin/**/*.kt"],
+    manifest: "oem-spreader/src/main/AndroidManifest.xml",
+    static_libs: ["agvehicle-sdk-core"],
+    sdk_version: "current",
+    min_sdk_version: "28",
+}
+
+android_library {
+    name: "agvehicle-sdk-oem-imu",
+    srcs: ["oem-imu/src/main/kotlin/**/*.kt"],
+    manifest: "oem-imu/src/main/AndroidManifest.xml",
+    static_libs: ["agvehicle-sdk-core"],
+    sdk_version: "current",
+    min_sdk_version: "28",
+}
+
+android_library {
+    name: "agvehicle-sdk-oem-genericio",
+    srcs: ["oem-genericio/src/main/kotlin/**/*.kt"],
+    manifest: "oem-genericio/src/main/AndroidManifest.xml",
+    static_libs: ["agvehicle-sdk-core"],
+    sdk_version: "current",
+    min_sdk_version: "28",
+}
+
 // flow(:flow, 코루틴)는 AOSP 내부 앱에선 콜백을 쓰므로 생략. 필요 시 kotlinx-coroutines
 // 정적 lib과 함께 android_library로 추가.
