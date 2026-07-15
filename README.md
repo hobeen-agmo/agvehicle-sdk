@@ -13,6 +13,9 @@
 SDK는 **기반 core 하나 + 신호 도메인별 모듈 여러 개**로 나뉜다. 필요한 도메인만
 가져다 쓴다 (NEVONEX의 Function Item별 의존성과 같은 모델).
 
+> 도메인 분류(표준 vs AGMO 제조사 고유)·네임스페이스(`.oem.`)·모듈 명명(`:oem-*`) 규칙은
+> [docs/sdk-conventions.md](docs/sdk-conventions.md) 참조.
+
 | 아티팩트 | 내용 | 코루틴 |
 |---|---|---|
 | `farm.agmo.vehicle:core` | 연결·제네릭 구독/제어·카탈로그·`Signal` 베이스(생명주기) | 없음 |

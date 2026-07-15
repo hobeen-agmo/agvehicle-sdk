@@ -17,7 +17,8 @@ dependencyResolutionManagement {
 }
 rootProject.name = "agvehicle-sdk"
 
-// core = 기반(연결·제네릭·카탈로그, 코루틴 의존 X).
-// imu/engine/hitch = 신호 도메인별 콜백 모듈. flow = 옵션(코루틴, Flow API).
-// tractor/steer = AGMO 고유 도메인(커스텀 트랙터 / 조향모터).
-include(":core", ":hitch", ":engine", ":imu", ":vehicle", ":flow", ":tractor", ":steer")
+// 표준 도메인(공개 J1939/ISO): core=기반, engine/hitch/imu/vehicle=콜백 모듈, flow=옵션.
+// AGMO 제조사 고유(proprietary): oem-* 접두사로 구분. docs/sdk-conventions.md 참조.
+//   oem-tractor(커스텀 트랙터) / oem-steer(조향모터) / oem-spreader(살포기) / oem-imu(자이로).
+include(":core", ":hitch", ":engine", ":imu", ":vehicle", ":flow",
+        ":oem-tractor", ":oem-steer", ":oem-spreader", ":oem-imu")

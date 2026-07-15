@@ -38,11 +38,22 @@ class Vehicle(context: Context, private val listener: Listener) : Signal(context
     )
 
     companion object {
+        // 4WD/AutoLift 제어는 AGMO 제조사 고유 도메인이라 :oem-tractor(Tractor)로 일원화됐다.
+        // 표준 성격의 :vehicle에 남기지 않는다 — 아래는 하위호환용 위임(다음 메이저에서 제거).
+
         /** 4WD 토글 제어권. set(true/false)로 켜고 끈다. */
+        @Deprecated("제조사 고유 제어는 :oem-tractor로 이동. Tractor.fourWd(context) 사용.",
+            ReplaceWith("Tractor.fourWd(context)", "farm.agmo.vehicle.oem.tractor.Tractor"))
         fun fourWd(context: Context): Toggle? = Toggle.acquire(context, "FOURWD_CMD")
+
         /** 선회 시 자동 상승 토글 */
+        @Deprecated("제조사 고유 제어는 :oem-tractor로 이동. Tractor.autoLiftOnTurn(context) 사용.",
+            ReplaceWith("Tractor.autoLiftOnTurn(context)", "farm.agmo.vehicle.oem.tractor.Tractor"))
         fun autoLiftOnTurn(context: Context): Toggle? = Toggle.acquire(context, "AUTOLIFT_TURN_CMD")
+
         /** 후진 시 자동 상승 토글 */
+        @Deprecated("제조사 고유 제어는 :oem-tractor로 이동. Tractor.autoLiftOnReverse(context) 사용.",
+            ReplaceWith("Tractor.autoLiftOnReverse(context)", "farm.agmo.vehicle.oem.tractor.Tractor"))
         fun autoLiftOnReverse(context: Context): Toggle? = Toggle.acquire(context, "AUTOLIFT_REV_CMD")
     }
 }
