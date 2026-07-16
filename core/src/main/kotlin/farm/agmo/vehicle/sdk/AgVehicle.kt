@@ -21,6 +21,7 @@ import android.content.Context
 import android.content.Intent
 import android.content.ServiceConnection
 import android.os.IBinder
+import android.os.SystemClock
 import farm.agmo.vehicle.IAgVehicle
 import farm.agmo.vehicle.IVehicleCallback
 import java.util.concurrent.CopyOnWriteArrayList
@@ -149,19 +150,25 @@ class AgVehicle private constructor(private val appContext: Context) {
      * 신호 구독. 반환 핸들을 close()하면 해제된다. 같은 key를 여러 곳이 구독해도
      * 서비스엔 SUB 1회만 나가고, 마지막 구독자가 닫힐 때 UNSUB 1회 나간다(refcount).
      * 미연결 상태에서 호출해도 되며 연결/재연결 시 자동 반영된다.
+     *
+     * @param sampleMs 앱 콜백 최소 간격(ms). 0(기본)이면 오는 값을 전부 전달(하위호환).
+     *   0보다 크면 최대 sampleMs마다 한 번만 최신값을 전달해 UI 숫자 깜빡임을 줄인다
+     *   (leading-edge 게이트: 값이 들어온 순간 now-last>=sampleMs면 통과, 타이머 없음).
+     *   게이트 상태는 이 구독 호출마다 독립이라 신호별로 다른 주기를 걸 수 있다.
      */
-    fun subscribe(key: String, onValue: (SignalValue) -> Unit): Subscription {
+    fun subscribe(key: String, sampleMs: Long = 0, onValue: (SignalValue) -> Unit): Subscription {
+        val cb = if (sampleMs > 0) gate(sampleMs, onValue) else onValue
         val first = synchronized(lock) {
             val list = valueSubs.getOrPut(key) { mutableListOf() }
             val wasEmpty = list.isEmpty()
-            list.add(onValue)
+            list.add(cb)
             wasEmpty
         }
         if (first) remote?.runCatching { subscribe(key) }
         return Subscription {
             val last = synchronized(lock) {
                 val list = valueSubs[key] ?: return@Subscription
-                list.remove(onValue)
+                list.remove(cb)
                 if (list.isEmpty()) { valueSubs.remove(key); true } else false
             }
             if (last) remote?.runCatching { unsubscribe(key) }
@@ -173,8 +180,14 @@ class AgVehicle private constructor(private val appContext: Context) {
      * 최신값 맵을 넘긴다 — 도메인 모듈이 타입 있는 "ID별 클래스"로 조립하는 토대.
      * (한 CAN 메시지의 신호들은 한 프레임으로 같이 오지만 콜백 스레드가 다를 수 있어
      *  최신값 누적은 동기화한다.) 반환 핸들 close()로 전체 해제.
+     *
+     * @param sampleMs 앱 콜백 최소 간격(ms). 0(기본)이면 갱신될 때마다 전달(하위호환).
+     *   0보다 크면 개별 신호는 전속력으로 받아 최신값에 누적하되, 앱 콜백은 최대
+     *   sampleMs마다 최신 스냅샷 1회만 호출한다(leading-edge, 타이머 없음). 게이트는
+     *   이 구독 인스턴스 전용이라 RPM은 100ms, 다른 메시지는 다른 주기로 독립 선언 가능.
      */
-    fun subscribeMessage(keys: List<String>, onValues: (Map<String, Double>) -> Unit): Subscription {
+    fun subscribeMessage(keys: List<String>, sampleMs: Long = 0, onValues: (Map<String, Double>) -> Unit): Subscription {
+        val deliver = if (sampleMs > 0) gate(sampleMs, onValues) else onValues
         val latest = HashMap<String, Double>()
         val mlock = Any()
         val subs = keys.map { key ->
@@ -183,10 +196,25 @@ class AgVehicle private constructor(private val appContext: Context) {
                     value.number?.let { latest[key] = it }
                     HashMap(latest)
                 }
-                onValues(snapshot)
+                deliver(snapshot)
             }
         }
         return Subscription { subs.forEach { it.close() } }
+    }
+
+    // leading-edge 스로틀: 값이 들어온 순간 마지막 통과로부터 sampleMs가 지났으면 전달.
+    // 타이머·코루틴 없이 단조 시계(SystemClock.elapsedRealtime)만 비교한다. RPM처럼 연속
+    // 갱신되는 신호는 게이트가 열릴 때마다 다음 값이 통과해 실제 ~sampleMs 간격으로 흐른다.
+    private fun <T> gate(sampleMs: Long, downstream: (T) -> Unit): (T) -> Unit {
+        val glock = Any()
+        var last = 0L
+        return { value ->
+            val pass = synchronized(glock) {
+                val now = SystemClock.elapsedRealtime()
+                if (now - last >= sampleMs) { last = now; true } else false
+            }
+            if (pass) downstream(value)
+        }
     }
 
     /** 신호 staleness(값 끊김) 알림 구독 — 값 구독과 별개로 등록 */
