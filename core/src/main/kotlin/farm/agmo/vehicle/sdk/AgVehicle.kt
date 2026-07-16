@@ -44,6 +44,11 @@ class AgVehicle private constructor(private val appContext: Context) {
 
         @Volatile private var instance: AgVehicle? = null
 
+        // leading-edge 게이트 판정 — 시각을 인자로 받는 순수 함수(테스트 대상). 마지막 통과(lastMs)로부터
+        // now-last>=sampleMs 지났으면 통과. gate()가 SystemClock.elapsedRealtime()을 nowMs로 넘긴다.
+        internal fun shouldEmit(lastMs: Long, nowMs: Long, sampleMs: Long): Boolean =
+            nowMs - lastMs >= sampleMs
+
         /**
          * 프로세스 공유 연결. 첫 호출에 bindService를 걸고, 이후 같은 인스턴스를 준다.
          * 도메인 모듈과 앱이 모두 이걸 통해 서비스에 얹힌다(연결은 하나).
@@ -211,7 +216,7 @@ class AgVehicle private constructor(private val appContext: Context) {
         return { value ->
             val pass = synchronized(glock) {
                 val now = SystemClock.elapsedRealtime()
-                if (now - last >= sampleMs) { last = now; true } else false
+                if (shouldEmit(last, now, sampleMs)) { last = now; true } else false
             }
             if (pass) downstream(value)
         }

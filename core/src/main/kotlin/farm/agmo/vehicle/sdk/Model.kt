@@ -75,7 +75,7 @@ object CatalogLine {
                 na = hexOrNull(t[17]), npl = hexOrNull(t[18]), safe = hexOrNull(t[19]),
                 unit = t[20].takeIf { it != "-" },
             )
-        } catch (_: Exception) {
+        } catch (_: NumberFormatException) {
             null
         }
     }

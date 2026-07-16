@@ -73,11 +73,17 @@ data class SteerMotorStatus(
         )
         fun from(v: Map<String, Double>): SteerMotorStatus? {
             fun b(n: String) = v["$P$n"]?.let { it != 0.0 }
-            val hall = b("HallFailure"); val can = b("CANdisconnected"); val stall = b("MotorStalled")
-            val dis = b("Disabled"); val ov = b("Overvoltage"); val hw = b("HardwareProtection")
-            val ee = b("E2PROM"); val uv = b("Undervoltage"); val oc = b("Overcurrent"); val mf = b("ModeFailure")
-            return if (listOf(hall, can, stall, dis, ov, hw, ee, uv, oc, mf).all { it != null })
-                SteerMotorStatus(hall!!, can!!, stall!!, dis!!, ov!!, hw!!, ee!!, uv!!, oc!!, mf!!) else null
+            val hall = b("HallFailure") ?: return null
+            val can = b("CANdisconnected") ?: return null
+            val stall = b("MotorStalled") ?: return null
+            val dis = b("Disabled") ?: return null
+            val ov = b("Overvoltage") ?: return null
+            val hw = b("HardwareProtection") ?: return null
+            val ee = b("E2PROM") ?: return null
+            val uv = b("Undervoltage") ?: return null
+            val oc = b("Overcurrent") ?: return null
+            val mf = b("ModeFailure") ?: return null
+            return SteerMotorStatus(hall, can, stall, dis, ov, hw, ee, uv, oc, mf)
         }
     }
 }

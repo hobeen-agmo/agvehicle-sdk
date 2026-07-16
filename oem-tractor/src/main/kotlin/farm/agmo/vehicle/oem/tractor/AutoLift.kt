@@ -53,9 +53,7 @@ class AutoLift internal constructor(
 
     /** 조향각/FNR 갱신마다 트리거 평가 — 조건 성립 & 미상승이면 1회 상승. */
     private fun evaluate() {
-        val turnTrig = onTurn && (steerRad?.let { abs(it) > TURN_THRESHOLD_RAD } ?: false)
-        val revTrig = onReverse && reverse
-        val trigger = turnTrig || revTrig
+        val trigger = shouldTrigger(steerRad, reverse, onTurn, onReverse)
         when {
             trigger && !raised -> if (hitch.setPosition(RAISE_PERCENT)) raised = true
             !trigger           -> raised = false   // 조건 해제 시 재무장
@@ -65,6 +63,16 @@ class AutoLift internal constructor(
     companion object {
         /** 표준 J1939 조향핸들각 (SPN 1807, VDC2 0xF009) — 데몬 내장 실존 신호. */
         const val STEER_KEY = "STEERANGLE"
+
+        /**
+         * 상승 트리거 판정 — 입력을 인자로 받는 순수 함수(AgVehicle/HitchControl 의존 없음, 테스트 대상).
+         * OR: (onTurn && |steerRad| > TURN_THRESHOLD_RAD) || (onReverse && reverse)
+         */
+        internal fun shouldTrigger(steerRad: Double?, reverse: Boolean, onTurn: Boolean, onReverse: Boolean): Boolean {
+            val turnTrig = onTurn && (steerRad?.let { abs(it) > TURN_THRESHOLD_RAD } ?: false)
+            val revTrig = onReverse && reverse
+            return turnTrig || revTrig
+        }
 
         // 선회 판정 임계(rad). STEERANGLE은 조향'핸들'각이라 실차 조향비(≈15~20:1)에 따라
         // 노면 바퀴각과 다르다. 기본값은 바퀴각 ~20° 상당의 보수적 값.
