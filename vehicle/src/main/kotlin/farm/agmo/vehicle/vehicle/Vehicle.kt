@@ -8,10 +8,8 @@
 //   })
 //   lifecycle.addObserver(vehicle)
 //
-//   // 토글 — 제어(쓰기). ⚠️ 데몬 신호 PGN이 제조사 고유 placeholder라 실차 스펙 필요.
-//   val fourwd = Vehicle.fourWd(this) ?: return   // null = 자격 없음/보유 중/미연결
-//   fourwd.set(true)                              // 4WD ON
-//   fourwd.release()
+// 제어(4WD/AutoLift)는 이 도메인에 없다 — 4WD는 실차 CAN 미매핑(미지원), AutoLift는
+// 별도 CAN 신호가 아니라 조향각·FNR·히치 조합의 앱 레벨 기능(oem-tractor의 Tractor.autoLift).
 package farm.agmo.vehicle.vehicle
 
 import android.content.Context
@@ -76,52 +74,4 @@ class Vehicle(context: Context, private val listener: Listener) : Signal(context
         vehicle.subscribeMessage(Amb.KEYS)      { Amb.from(it)?.let(listener::onAmb) },
         vehicle.subscribeMessage(Td.KEYS)       { Td.from(it)?.let(listener::onTd) },
     )
-
-    companion object {
-        // 4WD/AutoLift 제어는 AGMO 제조사 고유 도메인이라 :oem-tractor(Tractor)로 일원화됐다.
-        // 표준 성격의 :vehicle에 남기지 않는다 — 아래는 하위호환용 위임(다음 메이저에서 제거).
-
-        /** 4WD 토글 제어권. set(true/false)로 켜고 끈다. */
-        @Deprecated("제조사 고유 제어는 :oem-tractor로 이동. Tractor.fourWd(context) 사용.",
-            ReplaceWith("Tractor.fourWd(context)", "farm.agmo.vehicle.oem.tractor.Tractor"))
-        fun fourWd(context: Context): Toggle? = Toggle.acquire(context, "FOURWD_CMD")
-
-        /** 선회 시 자동 상승 토글 */
-        @Deprecated("제조사 고유 제어는 :oem-tractor로 이동. Tractor.autoLiftOnTurn(context) 사용.",
-            ReplaceWith("Tractor.autoLiftOnTurn(context)", "farm.agmo.vehicle.oem.tractor.Tractor"))
-        fun autoLiftOnTurn(context: Context): Toggle? = Toggle.acquire(context, "AUTOLIFT_TURN_CMD")
-
-        /** 후진 시 자동 상승 토글 */
-        @Deprecated("제조사 고유 제어는 :oem-tractor로 이동. Tractor.autoLiftOnReverse(context) 사용.",
-            ReplaceWith("Tractor.autoLiftOnReverse(context)", "farm.agmo.vehicle.oem.tractor.Tractor"))
-        fun autoLiftOnReverse(context: Context): Toggle? = Toggle.acquire(context, "AUTOLIFT_REV_CMD")
-    }
-}
-
-/** ON/OFF 제어 토글 (히치 제어와 같은 세션 구조 — 토큰·선점) */
-class Toggle internal constructor(private val session: AgVehicle.ControlSession) {
-    private var lostCb: (() -> Unit)? = null
-
-    /** 켜기(true)/끄기(false). false 반환 = 세션 상실 — 다시 acquire */
-    fun set(on: Boolean): Boolean = session.send(if (on) 1L else 0L)
-
-    /** 상위 계층 선점 통지 — 즉시 UI 잠글 것 */
-    fun onLost(cb: () -> Unit) { lostCb = cb }
-
-    /** 반납 (마지막 상태 유지) */
-    fun release() = session.release()
-
-    /** 안전값(off)으로 되돌린 뒤 반납 */
-    fun stopAndRelease() = session.stopAndRelease()
-
-    internal fun fireLost() { lostCb?.invoke() }
-
-    companion object {
-        internal fun acquire(context: Context, key: String): Toggle? {
-            val v = AgVehicle.shared(context)
-            var handle: Toggle? = null
-            val session = v.acquire(key) { handle?.fireLost() } ?: return null
-            return Toggle(session).also { handle = it }
-        }
-    }
 }

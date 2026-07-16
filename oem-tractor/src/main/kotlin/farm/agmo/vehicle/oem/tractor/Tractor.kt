@@ -22,7 +22,8 @@
 // ⚠️ 4WD: AGMO 트랙터 CAN 프로토콜에 대응 신호 없음(로컬 DBC·설계문서·NEVONEX 추출·SeamOS
 //   카탈로그 4곳 전수검색 0건). 런처 FOURWD 토글은 CAN 미연결 — 제어 메서드를 두지 않는다.
 // ⚠️ Auto Lift on Turn/Reverse: 별도 CAN 신호가 아니라 Hitch(setPosition)로 선회·후진 시
-//   히치를 자동 상승시키는 앱 레벨 기능. Turn/Rev 구분은 앱/런처 상위 로직. 여기선 Hitch만 노출.
+//   히치를 자동 상승시키는 앱 레벨 기능. 조향각(STEERANGLE)·FNR을 구독해 트리거하는
+//   AutoLift 헬퍼로 노출(Tractor.autoLift). 자세한 로직은 AutoLift.kt 참조.
 //
 // 🏭 AGMO 제조사 고유 (proprietary) — 표준 아님. oem 네임스페이스. docs/sdk-conventions.md 참조.
 package farm.agmo.vehicle.oem.tractor
@@ -78,6 +79,10 @@ class Tractor(context: Context, private val listener: Listener) : Signal(context
         /** 가속 제어권. setPercent(0~100%) */
         fun acceleratorControl(context: Context): AcceleratorControl? =
             acquire(context, TractorControlKeys.ACCELERATOR)?.let(::AcceleratorControl)
+
+        /** AutoLift 앱 기능 세션 — 히치 제어권(AD_HYD_CMD)을 잡아 반환. null=자격없음/보유중/미연결 */
+        fun autoLift(context: Context): AutoLift? =
+            hitchControl(context)?.let { AutoLift(AgVehicle.shared(context), it) }
 
         private fun acquire(context: Context, key: String): AgVehicle.ControlSession? =
             AgVehicle.shared(context).acquire(key)

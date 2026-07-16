@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    package="farm.agmo.vehicle.sdk.notification">
+
+    <!-- API 33+ 에서 알림 게시에 필요 (하위는 무시). 소비 앱으로 머지된다. -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+</manifest>

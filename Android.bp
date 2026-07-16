@@ -68,6 +68,15 @@ android_library {
     min_sdk_version: "28",
 }
 
+// ── notification: 앱→태블릿 알림 게시 (표준 Android 알림, core 무의존) ──
+android_library {
+    name: "agvehicle-sdk-notification",
+    srcs: ["notification/src/main/kotlin/**/*.kt"],
+    manifest: "notification/src/main/AndroidManifest.xml",
+    sdk_version: "current",
+    min_sdk_version: "28",
+}
+
 // ── OEM 도메인 모듈 (제조사 고유, core 위, 콜백) ──
 android_library {
     name: "agvehicle-sdk-oem-tractor",
