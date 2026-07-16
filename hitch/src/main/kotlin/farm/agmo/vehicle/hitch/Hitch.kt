@@ -22,12 +22,16 @@ class Hitch(context: Context, private val listener: Listener) : Signal(context) 
     /** 히치 위치 콜백 (읽기) */
     interface Listener {
         fun onPosition(position: HitchPosition) {}
+        fun onRearHitch(rearHitch: RearHitch) {}
+        fun onFrontHitch(frontHitch: FrontHitch) {}
     }
 
     override fun subscriptions(): List<AgVehicle.Subscription> = listOf(
         vehicle.subscribe(HitchPosition.KEY) { value ->
             value.number?.let { listener.onPosition(HitchPosition(it)) }
         },
+        vehicle.subscribeMessage(RearHitch.KEYS) { RearHitch.from(it)?.let(listener::onRearHitch) },
+        vehicle.subscribeMessage(FrontHitch.KEYS) { FrontHitch.from(it)?.let(listener::onFrontHitch) },
     )
 
     companion object {

@@ -27,6 +27,24 @@ class Vehicle(context: Context, private val listener: Listener) : Signal(context
         fun onBattery(battery: Battery) {}
         fun onDpf(dpf: Dpf) {}
         fun onPosition(position: GpsPosition) {}
+        fun onCcvs1(ccvs1: Ccvs1) {}
+        fun onEbc1(ebc1: Ebc1) {}
+        fun onEbc2(ebc2: Ebc2) {}
+        fun onEtc1(etc1: Etc1) {}
+        fun onEtc2(etc2: Etc2) {}
+        fun onTco1(tco1: Tco1) {}
+        fun onVdc2(vdc2: Vdc2) {}
+        fun onWbsd(wbsd: Wbsd) {}
+        fun onGbsd(gbsd: Gbsd) {}
+        fun onMss(mss: Mss) {}
+        fun onVdhr(vdhr: Vdhr) {}
+        fun onVh(vh: Vh) {}
+        fun onVep1(vep1: Vep1) {}
+        fun onRearPto(rearPto: RearPto) {}
+        fun onFrontPto(frontPto: FrontPto) {}
+        fun onVds(vds: Vds) {}
+        fun onAmb(amb: Amb) {}
+        fun onTd(td: Td) {}
     }
 
     override fun subscriptions(): List<AgVehicle.Subscription> = listOf(
@@ -35,6 +53,24 @@ class Vehicle(context: Context, private val listener: Listener) : Signal(context
         vehicle.subscribe(Battery.KEY)      { it.number?.let { v -> listener.onBattery(Battery(v)) } },
         vehicle.subscribe(Dpf.KEY)          { it.number?.let { v -> listener.onDpf(Dpf(v)) } },
         vehicle.subscribeMessage(GpsPosition.KEYS) { GpsPosition.from(it)?.let(listener::onPosition) },
+        vehicle.subscribeMessage(Ccvs1.KEYS)    { Ccvs1.from(it)?.let(listener::onCcvs1) },
+        vehicle.subscribeMessage(Ebc1.KEYS)     { Ebc1.from(it)?.let(listener::onEbc1) },
+        vehicle.subscribeMessage(Ebc2.KEYS)     { Ebc2.from(it)?.let(listener::onEbc2) },
+        vehicle.subscribeMessage(Etc1.KEYS)     { Etc1.from(it)?.let(listener::onEtc1) },
+        vehicle.subscribeMessage(Etc2.KEYS)     { Etc2.from(it)?.let(listener::onEtc2) },
+        vehicle.subscribeMessage(Tco1.KEYS)     { Tco1.from(it)?.let(listener::onTco1) },
+        vehicle.subscribeMessage(Vdc2.KEYS)     { Vdc2.from(it)?.let(listener::onVdc2) },
+        vehicle.subscribeMessage(Wbsd.KEYS)     { Wbsd.from(it)?.let(listener::onWbsd) },
+        vehicle.subscribeMessage(Gbsd.KEYS)     { Gbsd.from(it)?.let(listener::onGbsd) },
+        vehicle.subscribeMessage(Mss.KEYS)      { Mss.from(it)?.let(listener::onMss) },
+        vehicle.subscribeMessage(Vdhr.KEYS)     { Vdhr.from(it)?.let(listener::onVdhr) },
+        vehicle.subscribeMessage(Vh.KEYS)       { Vh.from(it)?.let(listener::onVh) },
+        vehicle.subscribeMessage(Vep1.KEYS)     { Vep1.from(it)?.let(listener::onVep1) },
+        vehicle.subscribeMessage(RearPto.KEYS)  { RearPto.from(it)?.let(listener::onRearPto) },
+        vehicle.subscribeMessage(FrontPto.KEYS) { FrontPto.from(it)?.let(listener::onFrontPto) },
+        vehicle.subscribeMessage(Vds.KEYS)      { Vds.from(it)?.let(listener::onVds) },
+        vehicle.subscribeMessage(Amb.KEYS)      { Amb.from(it)?.let(listener::onAmb) },
+        vehicle.subscribeMessage(Td.KEYS)       { Td.from(it)?.let(listener::onTd) },
     )
 
     companion object {

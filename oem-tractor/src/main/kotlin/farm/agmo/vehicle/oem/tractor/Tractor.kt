@@ -40,6 +40,10 @@ class Tractor(context: Context, private val listener: Listener) : Signal(context
         fun onPto(pto: Pto) {}
         fun onHydraulic(hydraulic: Hydraulic) {}
         fun onAccelerator(accelerator: Accelerator) {}
+        fun onFnrDiag(fnrDiag: FnrDiag) {}
+        fun onRangeShiftDiag(rangeShiftDiag: RangeShiftDiag) {}
+        fun onHydraulicDiag(hydraulicDiag: HydraulicDiag) {}
+        fun onAcceleratorDiag(acceleratorDiag: AcceleratorDiag) {}
     }
 
     override fun subscriptions(): List<AgVehicle.Subscription> = listOf(
@@ -48,6 +52,10 @@ class Tractor(context: Context, private val listener: Listener) : Signal(context
         vehicle.subscribeMessage(Pto.KEYS)         { Pto.from(it)?.let(listener::onPto) },
         vehicle.subscribeMessage(Hydraulic.KEYS)   { Hydraulic.from(it)?.let(listener::onHydraulic) },
         vehicle.subscribeMessage(Accelerator.KEYS) { Accelerator.from(it)?.let(listener::onAccelerator) },
+        vehicle.subscribeMessage(FnrDiag.KEYS)         { FnrDiag.from(it)?.let(listener::onFnrDiag) },
+        vehicle.subscribeMessage(RangeShiftDiag.KEYS)  { RangeShiftDiag.from(it)?.let(listener::onRangeShiftDiag) },
+        vehicle.subscribeMessage(HydraulicDiag.KEYS)   { HydraulicDiag.from(it)?.let(listener::onHydraulicDiag) },
+        vehicle.subscribeMessage(AcceleratorDiag.KEYS) { AcceleratorDiag.from(it)?.let(listener::onAcceleratorDiag) },
     )
 
     companion object {

@@ -85,6 +85,46 @@ data class Accelerator(val sig1V: Double, val sig2V: Double, val auto: Boolean) 
     }
 }
 
+/** 전후진(FNR) 진단 (0x410) — 슬라이드 전압(V) + 진단 코드. State/Mode는 Fnr이 담당. */
+data class FnrDiag(val sig1V: Double, val sig2V: Double, val diagCode: Int) {
+    companion object {
+        val KEYS = listOf("$APP:TRZ_FNR_SIG1_V", "$APP:TRZ_FNR_SIG2_V", "$APP:TRZ_FNR_DIAG")
+        fun from(v: Map<String, Double>): FnrDiag? {
+            val s1 = v["$APP:TRZ_FNR_SIG1_V"]; val s2 = v["$APP:TRZ_FNR_SIG2_V"]; val d = v["$APP:TRZ_FNR_DIAG"]
+            return if (s1 != null && s2 != null && d != null) FnrDiag(s1, s2, d.toInt()) else null
+        }
+    }
+}
+
+/** 변속 레인지(SFT) 진단 (0x420) — 슬라이드 전압(V) + 진단 코드. State/Mode는 RangeShift가 담당. */
+data class RangeShiftDiag(val sig1V: Double, val sig2V: Double, val diagCode: Int) {
+    companion object {
+        val KEYS = listOf("$APP:TRZ_SFT_SIG1_V", "$APP:TRZ_SFT_SIG2_V", "$APP:TRZ_SFT_DIAG")
+        fun from(v: Map<String, Double>): RangeShiftDiag? {
+            val s1 = v["$APP:TRZ_SFT_SIG1_V"]; val s2 = v["$APP:TRZ_SFT_SIG2_V"]; val d = v["$APP:TRZ_SFT_DIAG"]
+            return if (s1 != null && s2 != null && d != null) RangeShiftDiag(s1, s2, d.toInt()) else null
+        }
+    }
+}
+
+/** 유압/히치 진단 (0x480) — 진단 코드. SIG1_V/SIG2_V는 Hydraulic이 이미 wrap. */
+data class HydraulicDiag(val diagCode: Int) {
+    companion object {
+        val KEYS = listOf("$APP:TRZ_HYD_DIAG")
+        fun from(v: Map<String, Double>): HydraulicDiag? =
+            v["$APP:TRZ_HYD_DIAG"]?.let { HydraulicDiag(it.toInt()) }
+    }
+}
+
+/** 가속 진단 (0x490) — 진단 코드. SIG1_V/SIG2_V는 Accelerator가 이미 wrap. */
+data class AcceleratorDiag(val diagCode: Int) {
+    companion object {
+        val KEYS = listOf("$APP:TRZ_ACC_DIAG")
+        fun from(v: Map<String, Double>): AcceleratorDiag? =
+            v["$APP:TRZ_ACC_DIAG"]?.let { AcceleratorDiag(it.toInt()) }
+    }
+}
+
 /** 제어(WRITE) 신호 키 — 각 *_CMD 값 신호(byte0). mode(byte1)는 데몬 기본 0=Manual. */
 internal object TractorControlKeys {
     const val FNR = "$APP:AD_FNR_CMD"
