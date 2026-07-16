@@ -50,6 +50,19 @@ class AgVehicle private constructor(private val appContext: Context) {
         internal fun shouldEmit(lastMs: Long, nowMs: Long, sampleMs: Long): Boolean =
             nowMs - lastMs >= sampleMs
 
+        // subscribeMessage 콜백 병합 — Android 의존 없는 순수 함수라 직접 유닛테스트 가능.
+        // latest는 in-place로 갱신(호출부가 동기화해서 부른다). allow=false(게이트 닫힘)면
+        // HashMap(latest) 전체복사를 만들지 않고 null만 반환 — 버려질 스냅샷 할당을 없앤다.
+        internal fun mergeLatest(
+            latest: MutableMap<String, Double>,
+            key: String,
+            number: Double?,
+            allow: Boolean,
+        ): Map<String, Double>? {
+            number?.let { latest[key] = it }
+            return if (allow) HashMap(latest) else null
+        }
+
         /**
          * 프로세스 공유 연결. 첫 호출에 bindService를 걸고, 이후 같은 인스턴스를 준다.
          * 도메인 모듈과 앱이 모두 이걸 통해 서비스에 얹힌다(연결은 하나).
@@ -197,16 +210,13 @@ class AgVehicle private constructor(private val appContext: Context) {
      *   이 구독 인스턴스 전용이라 RPM은 100ms, 다른 메시지는 다른 주기로 독립 선언 가능.
      */
     fun subscribeMessage(keys: List<String>, sampleMs: Long = 0, onValues: (Map<String, Double>) -> Unit): Subscription {
-        val deliver = if (sampleMs > 0) gate(sampleMs, onValues) else onValues
+        val allow: () -> Boolean = if (sampleMs > 0) gateAllows(sampleMs) else { { true } }
         val latest = HashMap<String, Double>()
         val mlock = Any()
         val subs = keys.map { key ->
             subscribe(key) { value ->
-                val snapshot: Map<String, Double> = synchronized(mlock) {
-                    value.number?.let { latest[key] = it }
-                    HashMap(latest)
-                }
-                deliver(snapshot)
+                val snapshot = synchronized(mlock) { mergeLatest(latest, key, value.number, allow()) }
+                snapshot?.let(onValues)
             }
         }
         return Subscription { subs.forEach { it.close() } }
@@ -216,14 +226,20 @@ class AgVehicle private constructor(private val appContext: Context) {
     // 타이머·코루틴 없이 단조 시계(SystemClock.elapsedRealtime)만 비교한다. RPM처럼 연속
     // 갱신되는 신호는 게이트가 열릴 때마다 다음 값이 통과해 실제 ~sampleMs 간격으로 흐른다.
     private fun <T> gate(sampleMs: Long, downstream: (T) -> Unit): (T) -> Unit {
+        val allow = gateAllows(sampleMs)
+        return { value -> if (allow()) downstream(value) }
+    }
+
+    // gate()의 통과 판정만 떼어낸 버전 — subscribeMessage처럼 "통과할 때만 값을 만들고 싶은"
+    // 호출부가 downstream을 감싸지 않고 직접 pass/fail만 물어볼 수 있게 한다.
+    private fun gateAllows(sampleMs: Long): () -> Boolean {
         val glock = Any()
         var last = 0L
-        return { value ->
-            val pass = synchronized(glock) {
+        return {
+            synchronized(glock) {
                 val now = SystemClock.elapsedRealtime()
                 if (shouldEmit(last, now, sampleMs)) { last = now; true } else false
             }
-            if (pass) downstream(value)
         }
     }
 
