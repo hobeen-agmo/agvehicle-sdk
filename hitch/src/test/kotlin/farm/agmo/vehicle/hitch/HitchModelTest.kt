@@ -25,9 +25,14 @@ class HitchScaleTest {
         assertEquals(250L, HitchScale.toRaw(150.0))
     }
 
-    @Test fun toRaw_midValue_truncatesTowardZero() {
+    @Test fun toRaw_midValue_exactDivision_matches() {
         // 50 / 0.4 = 125.0 정확히 나눠떨어짐
         assertEquals(125L, HitchScale.toRaw(50.0))
+    }
+
+    @Test fun toRaw_nonExactValue_roundsToNearest() {
+        // 50.3 / 0.4 = 125.75 → 반올림 126 (절단이면 125로 어긋남)
+        assertEquals(126L, HitchScale.toRaw(50.3))
     }
 
     @Test fun toPercent_zeroRaw_isZero() {

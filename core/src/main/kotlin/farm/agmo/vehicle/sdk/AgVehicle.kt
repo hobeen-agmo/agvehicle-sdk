@@ -33,6 +33,7 @@ class AgVehicle private constructor(private val appContext: Context) {
         fun onConnected() {}      // 이 시점부터 구독/제어 가능 (재연결 시에도 호출)
         fun onDisconnected() {}   // 서비스 사망 등 — SDK가 자동 재바인딩
         fun onRejected() {}       // attach 거부 — 실행 충돌 차단(앱 종료 판단)
+        fun onBindFailed() {}     // bindService 자체 실패(서비스 미설치 등) — 재시도 불가, 앱 종료 판단
     }
 
     /** 구독 핸들 — close()로 해제. 도메인 모듈은 이걸 들고 있다가 stop 시 닫는다 */
@@ -56,13 +57,15 @@ class AgVehicle private constructor(private val appContext: Context) {
         fun shared(context: Context): AgVehicle =
             instance ?: synchronized(this) {
                 instance ?: AgVehicle(context.applicationContext).also {
-                    it.bind(); instance = it
+                    it.isBindFailed = !it.bind(); instance = it
                 }
             }
     }
 
     @Volatile private var remote: IAgVehicle? = null
     @Volatile var isConnected: Boolean = false; private set
+    /** bindService 자체가 실패했는지(서비스 미설치 등) — 이러면 재바인딩 여지가 없다 */
+    @Volatile var isBindFailed: Boolean = false; private set
 
     private val connListeners = CopyOnWriteArrayList<ConnectionListener>()
     private val lock = Any()
@@ -84,6 +87,7 @@ class AgVehicle private constructor(private val appContext: Context) {
             val r = IAgVehicle.Stub.asInterface(binder)
             remote = r
             if (!r.attach(callback)) {
+                remote = null   // 거부됐으면 명령을 계속 흘려보내지 않도록 즉시 무효화
                 connListeners.forEach { it.onRejected() }
                 return
             }
@@ -140,7 +144,8 @@ class AgVehicle private constructor(private val appContext: Context) {
     // ── 연결 관찰 ───────────────────────────────────────────
     fun addConnectionListener(l: ConnectionListener) {
         connListeners.add(l)
-        if (isConnected) l.onConnected()   // 늦게 붙은 관찰자도 현재 상태를 즉시 받음
+        if (isConnected) l.onConnected()        // 늦게 붙은 관찰자도 현재 상태를 즉시 받음
+        else if (isBindFailed) l.onBindFailed()
     }
     fun removeConnectionListener(l: ConnectionListener) = connListeners.remove(l)
 

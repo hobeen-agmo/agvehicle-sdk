@@ -5,6 +5,8 @@
 //   HITCH_CMD (0xEF80, write) → HitchControl.setPosition() 지시
 package farm.agmo.vehicle.hitch
 
+import kotlin.math.roundToLong
+
 /** 현재 히치 위치 (0~100%) — PGN 0xFE45 */
 data class HitchPosition(val percent: Double) {
     companion object {
@@ -20,9 +22,9 @@ object HitchScale {
     const val RESOLUTION = 0.4      // %/bit
     const val RAW_MAX = 250L        // 100%
 
-    /** 위치 %(0~100) → 데몬 raw. 범위 밖은 클램프(안전) */
+    /** 위치 %(0~100) → 데몬 raw. 범위 밖은 클램프(안전), 절단 대신 반올림 */
     fun toRaw(percent: Double): Long =
-        (percent / RESOLUTION).toLong().coerceIn(0, RAW_MAX)
+        (percent / RESOLUTION).roundToLong().coerceIn(0, RAW_MAX)
 
     /** 데몬 raw → 위치 % */
     fun toPercent(raw: Long): Double = raw * RESOLUTION

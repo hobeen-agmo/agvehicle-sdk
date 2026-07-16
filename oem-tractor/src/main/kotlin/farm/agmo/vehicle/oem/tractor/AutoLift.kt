@@ -26,6 +26,18 @@ class AutoLift internal constructor(
     private var steerRad: Double? = null
     private var reverse = false
     private var raised = false            // 이미 상승 명령을 낸 상태 — 중복 억제
+    private var lostCb: (() -> Unit)? = null
+
+    init {
+        // 상위(비상정지 등)가 히치 제어권(AD_HYD_CMD)을 선점하면 재무장 + 앱 통지.
+        hitch.onLost {
+            raised = false
+            lostCb?.invoke()
+        }
+    }
+
+    /** 상위 계층 선점 통지 등록 — 즉시 UI를 잠글 것 */
+    fun onLost(cb: () -> Unit) { lostCb = cb }
 
     /** 조향각/FNR 구독 시작. 중복 호출 안전. */
     fun start() {

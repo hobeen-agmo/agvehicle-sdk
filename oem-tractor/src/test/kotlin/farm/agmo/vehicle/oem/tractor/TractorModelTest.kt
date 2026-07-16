@@ -89,3 +89,28 @@ class TractorControlKeysTest {
         keys.forEach { assertTrue(it.startsWith("agmo_customized_tractor:")) }
     }
 }
+
+class PercentToRawTest {
+    @Test fun percentToRaw_nonExactValue_roundsToNearest() {
+        // 50.6% → 반올림 51 (절단이면 50으로 어긋남)
+        assertEquals(51L, percentToRaw(50.6))
+    }
+
+    @Test fun percentToRaw_negative_clampsToZero() {
+        assertEquals(0L, percentToRaw(-5.0))
+    }
+
+    @Test fun percentToRaw_overHundred_clampsTo100() {
+        assertEquals(100L, percentToRaw(150.0))
+    }
+}
+
+class TractorStaleKeysTest {
+    @Test fun staleKeys_coversAllReadMessageKeys() {
+        val expected = (
+            Fnr.KEYS + RangeShift.KEYS + Pto.KEYS + Hydraulic.KEYS + Accelerator.KEYS +
+                FnrDiag.KEYS + RangeShiftDiag.KEYS + HydraulicDiag.KEYS + AcceleratorDiag.KEYS
+            ).distinct()
+        assertEquals(expected, Tractor.STALE_KEYS)
+    }
+}

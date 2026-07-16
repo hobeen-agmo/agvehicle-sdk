@@ -1,7 +1,8 @@
 // EngineModel.kt — 엔진 메시지(ID)별 데이터 클래스 (순수 — JVM 테스트 대상).
 //
 // "CAN 메시지(ID) 하나 = 클래스 하나" 원칙. 엔진 신호는 여러 J1939 메시지에 흩어져 있다:
-//   EEC1 (0xF004)  → Eec1(rpm, loadPercent)       — 다중신호 한 메시지
+//   EEC1 (0xF004)  → Eec1(rpm, loadPercent)       — loadPercent는 실제론 EEC2 소속(레거시,
+//                                                    @Deprecated 참조. 정본은 Eec2.loadPercent)
 //   ET1  (0xFEEE)  → EngineTemperature(coolantC)
 //   EFL/P1 (0xFEEF)→ EngineOilPressure(kPa)
 //   DD   (0xFEFC)  → FuelLevel(percent)
@@ -9,12 +10,24 @@
 // 앱이 엔진 대시보드를 만들면 필요한 메시지만 구독한다.
 package farm.agmo.vehicle.engine
 
-/** 엔진 EEC1 (0xF004) — 회전수 + 부하 (한 메시지의 두 신호) */
-data class Eec1(val rpm: Double, val loadPercent: Double) {
+/**
+ * 엔진 EEC1 (0xF004) — 회전수 (한 메시지 한 신호, SPN 190).
+ *
+ * ⚠️ [loadPercent]는 실제로는 EEC1이 아니라 EEC2(0xF003, SPN 92) 소속이다(데몬 agcand
+ * signal_defs.cpp 확인: ENGRPM만 0xF004, ENGLOAD는 0xF003) — "CAN 메시지 하나 = 클래스
+ * 하나" 원칙 위반. 정확한 소속은 [Eec2.loadPercent]. 필드 삭제는 공개 API 시그니처
+ * 하위호환을 깨서 보류 — 신규 코드는 [Eec2]를 쓸 것.
+ */
+data class Eec1(
+    val rpm: Double,
+    @Deprecated("EEC1(0xF004) 소속 아님 — EEC2(0xF003) 신호다. Eec2.loadPercent를 쓸 것.")
+    val loadPercent: Double,
+) {
     companion object {
         val KEYS = listOf("ENGRPM", "ENGLOAD")
         fun from(v: Map<String, Double>): Eec1? {
             val r = v["ENGRPM"]; val l = v["ENGLOAD"]
+            @Suppress("DEPRECATION")
             return if (r != null && l != null) Eec1(r, l) else null
         }
     }

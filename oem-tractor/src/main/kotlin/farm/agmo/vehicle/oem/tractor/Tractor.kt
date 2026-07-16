@@ -31,6 +31,7 @@ package farm.agmo.vehicle.oem.tractor
 import android.content.Context
 import farm.agmo.vehicle.sdk.AgVehicle
 import farm.agmo.vehicle.sdk.Signal
+import kotlin.math.roundToLong
 
 class Tractor(context: Context, private val listener: Listener) : Signal(context) {
 
@@ -45,6 +46,8 @@ class Tractor(context: Context, private val listener: Listener) : Signal(context
         fun onRangeShiftDiag(rangeShiftDiag: RangeShiftDiag) {}
         fun onHydraulicDiag(hydraulicDiag: HydraulicDiag) {}
         fun onAcceleratorDiag(acceleratorDiag: AcceleratorDiag) {}
+        /** 신호 끊김(quality=DISCONNECTED) 알림 — key는 데몬 신호명. 필요하면 override */
+        fun onStale(key: String) {}
     }
 
     override fun subscriptions(): List<AgVehicle.Subscription> = listOf(
@@ -57,35 +60,50 @@ class Tractor(context: Context, private val listener: Listener) : Signal(context
         vehicle.subscribeMessage(RangeShiftDiag.KEYS)  { RangeShiftDiag.from(it)?.let(listener::onRangeShiftDiag) },
         vehicle.subscribeMessage(HydraulicDiag.KEYS)   { HydraulicDiag.from(it)?.let(listener::onHydraulicDiag) },
         vehicle.subscribeMessage(AcceleratorDiag.KEYS) { AcceleratorDiag.from(it)?.let(listener::onAcceleratorDiag) },
-    )
+    ) + STALE_KEYS.map { key -> vehicle.onStale(key) { listener.onStale(key) } }
 
     companion object {
+        /** 스테일 감시 대상 신호 키(읽기 메시지 전체) — 테스트 대상 */
+        internal val STALE_KEYS: List<String> = (
+            Fnr.KEYS + RangeShift.KEYS + Pto.KEYS + Hydraulic.KEYS + Accelerator.KEYS +
+                FnrDiag.KEYS + RangeShiftDiag.KEYS + HydraulicDiag.KEYS + AcceleratorDiag.KEYS
+            ).distinct()
+
         /** 전후진 제어권. set(FnrDirection). null=자격 없음/보유 중/미연결 */
         fun fnrControl(context: Context): FnrControl? =
-            acquire(context, TractorControlKeys.FNR)?.let(::FnrControl)
+            acquire(context, TractorControlKeys.FNR, ::FnrControl)
 
         /** 변속 레인지 제어권. set(RangeGear) */
         fun rangeShiftControl(context: Context): RangeShiftControl? =
-            acquire(context, TractorControlKeys.RANGE_SHIFT)?.let(::RangeShiftControl)
+            acquire(context, TractorControlKeys.RANGE_SHIFT, ::RangeShiftControl)
 
         /** PTO 제어권. set(PtoMode) */
         fun ptoControl(context: Context): PtoControl? =
-            acquire(context, TractorControlKeys.PTO)?.let(::PtoControl)
+            acquire(context, TractorControlKeys.PTO, ::PtoControl)
 
         /** 유압 히치 제어권. setPosition(0~100%). AutoLift 앱 기능도 이걸 사용. */
         fun hitchControl(context: Context): HitchControl? =
-            acquire(context, TractorControlKeys.HITCH)?.let(::HitchControl)
+            acquire(context, TractorControlKeys.HITCH, ::HitchControl)
 
         /** 가속 제어권. setPercent(0~100%) */
         fun acceleratorControl(context: Context): AcceleratorControl? =
-            acquire(context, TractorControlKeys.ACCELERATOR)?.let(::AcceleratorControl)
+            acquire(context, TractorControlKeys.ACCELERATOR, ::AcceleratorControl)
 
         /** AutoLift 앱 기능 세션 — 히치 제어권(AD_HYD_CMD)을 잡아 반환. null=자격없음/보유중/미연결 */
         fun autoLift(context: Context): AutoLift? =
             hitchControl(context)?.let { AutoLift(AgVehicle.shared(context), it) }
 
-        private fun acquire(context: Context, key: String): AgVehicle.ControlSession? =
-            AgVehicle.shared(context).acquire(key)
+        /**
+         * 제어권 획득 + 선점 통지 배선. handle을 먼저 null로 잡고 acquire의 onControlLost
+         * 람다가 그 handle(생성 후 채워짐)의 fireLost()를 부르게 해 상위 선점 시 앱에 통지한다
+         * (Hitch/Gpio/Spreader와 같은 handle 패턴 — Tractor는 제어 타입이 5개라 제네릭으로 공통화).
+         */
+        private fun <T : TractorControl> acquire(context: Context, key: String, factory: (AgVehicle.ControlSession) -> T): T? {
+            val v = AgVehicle.shared(context)
+            var handle: T? = null
+            val session = v.acquire(key) { handle?.fireLost() } ?: return null
+            return factory(session).also { handle = it }
+        }
     }
 }
 
@@ -120,12 +138,15 @@ class PtoControl internal constructor(s: AgVehicle.ControlSession) : TractorCont
     fun set(mode: PtoMode): Boolean = send(mode.code.toLong())
 }
 
+/** 0~100% 직접값 → raw 클램프 변환 (Hitch/Accelerator 공통, 절단 대신 반올림) — 테스트 대상 */
+internal fun percentToRaw(percent: Double): Long = percent.roundToLong().coerceIn(0, 100)
+
 /** 유압 히치 위치 지령 (0~100%). AD_HYD_CMD가 0~100 직접값이라 raw=클램프된 정수%. */
 class HitchControl internal constructor(s: AgVehicle.ControlSession) : TractorControl(s) {
-    fun setPosition(percent: Double): Boolean = send(percent.toLong().coerceIn(0, 100))
+    fun setPosition(percent: Double): Boolean = send(percentToRaw(percent))
 }
 
 /** 가속 지령 (0~100%) */
 class AcceleratorControl internal constructor(s: AgVehicle.ControlSession) : TractorControl(s) {
-    fun setPercent(percent: Double): Boolean = send(percent.toLong().coerceIn(0, 100))
+    fun setPercent(percent: Double): Boolean = send(percentToRaw(percent))
 }

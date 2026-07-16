@@ -1,7 +1,8 @@
 // Engine.kt — 엔진 읽기 도메인 (Signal 상속, 생명주기 한 줄 연동).
 //
 //   val engine = Engine(this, object : Engine.Listener {
-//       override fun onEec1(e: Eec1) = runOnUiThread { render(e.rpm, e.loadPercent) }
+//       override fun onEec1(e: Eec1) = runOnUiThread { render(e.rpm) }     // 부하는 onEec2로
+//       override fun onEec2(e: Eec2) = runOnUiThread { render(e.loadPercent) }
 //       override fun onTemperature(t: EngineTemperature) = runOnUiThread { render(t.coolantC) }
 //   })
 //   lifecycle.addObserver(engine)
