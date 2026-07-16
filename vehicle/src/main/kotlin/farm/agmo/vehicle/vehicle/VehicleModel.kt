@@ -235,6 +235,37 @@ data class Vds(val altitudeM: Double, val headingDeg: Double, val speedKmh: Doub
     }
 }
 
+/** COG & SOG Rapid Update 129026 — GNSS 진행방위(rad)·대지속도(m/s) */
+data class GnssCourseSpeed(val courseRad: Double, val speedMs: Double) {
+    companion object {
+        val KEYS = listOf("GPS_COG", "GPS_SOG")
+        fun from(v: Map<String, Double>): GnssCourseSpeed? {
+            val cog = v["GPS_COG"]; val sog = v["GPS_SOG"]
+            return if (cog != null && sog != null) GnssCourseSpeed(cog, sog) else null
+        }
+    }
+}
+
+/** GNSS Position Data 129029 — 측위 품질(fix 방식·위성 수·HDOP·PDOP·지오이드 분리) */
+data class GnssQuality(
+    val method: Int,
+    val numSatellites: Int,
+    val hdop: Double,
+    val pdop: Double,
+    val geoidalSepM: Double,
+) {
+    companion object {
+        val KEYS = listOf("GPS_METHOD", "GPS_NUMSAT", "GPS_HDOP", "GPS_PDOP", "GPS_GEOSEP")
+        fun from(v: Map<String, Double>): GnssQuality? {
+            val method = v["GPS_METHOD"]; val num = v["GPS_NUMSAT"]
+            val hdop = v["GPS_HDOP"]; val pdop = v["GPS_PDOP"]; val geo = v["GPS_GEOSEP"]
+            return if (method != null && num != null && hdop != null && pdop != null && geo != null)
+                GnssQuality(method.toInt(), num.toInt(), hdop, pdop, geo)
+            else null
+        }
+    }
+}
+
 /** AMB 0xFEF5 (SPN 108/171/172) — 기압/외기온/흡기온 */
 data class Amb(val barometricKPa: Double, val ambientC: Double, val airInletC: Double) {
     companion object {

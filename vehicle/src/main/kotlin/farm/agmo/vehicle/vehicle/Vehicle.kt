@@ -43,6 +43,8 @@ class Vehicle(context: Context, private val listener: Listener) : Signal(context
         fun onRearPto(rearPto: RearPto) {}
         fun onFrontPto(frontPto: FrontPto) {}
         fun onVds(vds: Vds) {}
+        fun onGnssCourseSpeed(courseSpeed: GnssCourseSpeed) {}
+        fun onGnssQuality(quality: GnssQuality) {}
         fun onAmb(amb: Amb) {}
         fun onTd(td: Td) {}
     }
@@ -69,6 +71,8 @@ class Vehicle(context: Context, private val listener: Listener) : Signal(context
         vehicle.subscribeMessage(RearPto.KEYS)  { RearPto.from(it)?.let(listener::onRearPto) },
         vehicle.subscribeMessage(FrontPto.KEYS) { FrontPto.from(it)?.let(listener::onFrontPto) },
         vehicle.subscribeMessage(Vds.KEYS)      { Vds.from(it)?.let(listener::onVds) },
+        vehicle.subscribeMessage(GnssCourseSpeed.KEYS) { GnssCourseSpeed.from(it)?.let(listener::onGnssCourseSpeed) },
+        vehicle.subscribeMessage(GnssQuality.KEYS)     { GnssQuality.from(it)?.let(listener::onGnssQuality) },
         vehicle.subscribeMessage(Amb.KEYS)      { Amb.from(it)?.let(listener::onAmb) },
         vehicle.subscribeMessage(Td.KEYS)       { Td.from(it)?.let(listener::onTd) },
     )
