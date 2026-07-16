@@ -20,6 +20,7 @@ android {
 }
 
 dependencies {
+    testImplementation(kotlin("test"))
 }
 
 apply(from = "$rootDir/gradle/publish.gradle.kts")

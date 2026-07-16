@@ -19,6 +19,8 @@ android {
 
 dependencies {
     api(project(":core"))   // api: 앱이 core 타입(ControlSession 등)도 함께 본다
+
+    testImplementation(kotlin("test"))
 }
 
 apply(from = "$rootDir/gradle/publish.gradle.kts")

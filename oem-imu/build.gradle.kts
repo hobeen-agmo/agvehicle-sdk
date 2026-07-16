@@ -21,6 +21,8 @@ android {
 
 dependencies {
     api(project(":core"))
+
+    testImplementation(kotlin("test"))
 }
 
 apply(from = "$rootDir/gradle/publish.gradle.kts")
