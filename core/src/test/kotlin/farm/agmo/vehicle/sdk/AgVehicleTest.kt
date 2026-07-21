@@ -9,19 +9,19 @@ import kotlin.test.assertTrue
 
 class AgVehicleShouldEmitTest {
     @Test fun shouldEmit_zeroElapsed_isBlocked() {
-        assertFalse(AgVehicle.shouldEmit(lastMs = 1_000L, nowMs = 1_000L, sampleMs = 100L))
+        assertFalse(AgVehicle.shouldEmit(lastMs = 1_000L, nowMs = 1_000L, intervalMs = 100L))
     }
 
-    @Test fun shouldEmit_elapsedExactlySampleMs_isAllowed() {
-        assertTrue(AgVehicle.shouldEmit(lastMs = 1_000L, nowMs = 1_100L, sampleMs = 100L))
+    @Test fun shouldEmit_elapsedExactlyInterval_isAllowed() {
+        assertTrue(AgVehicle.shouldEmit(lastMs = 1_000L, nowMs = 1_100L, intervalMs = 100L))
     }
 
-    @Test fun shouldEmit_elapsedSampleMsMinusOne_isBlocked() {
-        assertFalse(AgVehicle.shouldEmit(lastMs = 1_000L, nowMs = 1_099L, sampleMs = 100L))
+    @Test fun shouldEmit_elapsedIntervalMinusOne_isBlocked() {
+        assertFalse(AgVehicle.shouldEmit(lastMs = 1_000L, nowMs = 1_099L, intervalMs = 100L))
     }
 
-    @Test fun shouldEmit_elapsedBeyondSampleMs_isAllowed() {
-        assertTrue(AgVehicle.shouldEmit(lastMs = 1_000L, nowMs = 5_000L, sampleMs = 100L))
+    @Test fun shouldEmit_elapsedBeyondInterval_isAllowed() {
+        assertTrue(AgVehicle.shouldEmit(lastMs = 1_000L, nowMs = 5_000L, intervalMs = 100L))
     }
 }
 

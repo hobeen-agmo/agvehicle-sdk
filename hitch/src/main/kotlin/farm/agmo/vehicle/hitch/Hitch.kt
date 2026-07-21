@@ -17,7 +17,11 @@ import android.content.Context
 import farm.agmo.vehicle.sdk.AgVehicle
 import farm.agmo.vehicle.sdk.Signal
 
-class Hitch(context: Context, private val listener: Listener) : Signal(context) {
+class Hitch(
+    context: Context,
+    private val listener: Listener,
+    private val intervalMs: Long = 0,   // 앱 콜백 최소 간격(ms). 0=전부 전달, >0=최대 그 간격마다 최신값 1회
+) : Signal(context) {
 
     /** 히치 위치 콜백 (읽기) */
     interface Listener {
@@ -27,11 +31,11 @@ class Hitch(context: Context, private val listener: Listener) : Signal(context) 
     }
 
     override fun subscriptions(): List<AgVehicle.Subscription> = listOf(
-        vehicle.subscribe(HitchPosition.KEY) { value ->
+        vehicle.subscribe(HitchPosition.KEY, intervalMs) { value ->
             value.number?.let { listener.onPosition(HitchPosition(it)) }
         },
-        vehicle.subscribeMessage(RearHitch.KEYS) { RearHitch.from(it)?.let(listener::onRearHitch) },
-        vehicle.subscribeMessage(FrontHitch.KEYS) { FrontHitch.from(it)?.let(listener::onFrontHitch) },
+        vehicle.subscribeMessage(RearHitch.KEYS, intervalMs) { RearHitch.from(it)?.let(listener::onRearHitch) },
+        vehicle.subscribeMessage(FrontHitch.KEYS, intervalMs) { FrontHitch.from(it)?.let(listener::onFrontHitch) },
     )
 
     companion object {

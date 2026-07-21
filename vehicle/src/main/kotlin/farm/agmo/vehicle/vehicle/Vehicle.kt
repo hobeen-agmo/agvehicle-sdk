@@ -16,7 +16,11 @@ import android.content.Context
 import farm.agmo.vehicle.sdk.AgVehicle
 import farm.agmo.vehicle.sdk.Signal
 
-class Vehicle(context: Context, private val listener: Listener) : Signal(context) {
+class Vehicle(
+    context: Context,
+    private val listener: Listener,
+    private val intervalMs: Long = 0,   // 앱 콜백 최소 간격(ms). 0=전부 전달, >0=최대 그 간격마다 최신값 1회
+) : Signal(context) {
 
     /** 차량 상태 콜백 — 필요한 것만 override */
     interface Listener {
@@ -48,30 +52,30 @@ class Vehicle(context: Context, private val listener: Listener) : Signal(context
     }
 
     override fun subscriptions(): List<AgVehicle.Subscription> = listOf(
-        vehicle.subscribe(VehicleSpeed.KEY) { it.number?.let { v -> listener.onSpeed(VehicleSpeed(v)) } },
-        vehicle.subscribe(PtoSpeed.KEY)     { it.number?.let { v -> listener.onPto(PtoSpeed(v)) } },
-        vehicle.subscribe(Battery.KEY)      { it.number?.let { v -> listener.onBattery(Battery(v)) } },
-        vehicle.subscribe(Dpf.KEY)          { it.number?.let { v -> listener.onDpf(Dpf(v)) } },
-        vehicle.subscribeMessage(GpsPosition.KEYS) { GpsPosition.from(it)?.let(listener::onPosition) },
-        vehicle.subscribeMessage(Ccvs1.KEYS)    { Ccvs1.from(it)?.let(listener::onCcvs1) },
-        vehicle.subscribeMessage(Ebc1.KEYS)     { Ebc1.from(it)?.let(listener::onEbc1) },
-        vehicle.subscribeMessage(Ebc2.KEYS)     { Ebc2.from(it)?.let(listener::onEbc2) },
-        vehicle.subscribeMessage(Etc1.KEYS)     { Etc1.from(it)?.let(listener::onEtc1) },
-        vehicle.subscribeMessage(Etc2.KEYS)     { Etc2.from(it)?.let(listener::onEtc2) },
-        vehicle.subscribeMessage(Tco1.KEYS)     { Tco1.from(it)?.let(listener::onTco1) },
-        vehicle.subscribeMessage(Vdc2.KEYS)     { Vdc2.from(it)?.let(listener::onVdc2) },
-        vehicle.subscribeMessage(Wbsd.KEYS)     { Wbsd.from(it)?.let(listener::onWbsd) },
-        vehicle.subscribeMessage(Gbsd.KEYS)     { Gbsd.from(it)?.let(listener::onGbsd) },
-        vehicle.subscribeMessage(Mss.KEYS)      { Mss.from(it)?.let(listener::onMss) },
-        vehicle.subscribeMessage(Vdhr.KEYS)     { Vdhr.from(it)?.let(listener::onVdhr) },
-        vehicle.subscribeMessage(Vh.KEYS)       { Vh.from(it)?.let(listener::onVh) },
-        vehicle.subscribeMessage(Vep1.KEYS)     { Vep1.from(it)?.let(listener::onVep1) },
-        vehicle.subscribeMessage(RearPto.KEYS)  { RearPto.from(it)?.let(listener::onRearPto) },
-        vehicle.subscribeMessage(FrontPto.KEYS) { FrontPto.from(it)?.let(listener::onFrontPto) },
-        vehicle.subscribeMessage(Vds.KEYS)      { Vds.from(it)?.let(listener::onVds) },
-        vehicle.subscribeMessage(GnssCourseSpeed.KEYS) { GnssCourseSpeed.from(it)?.let(listener::onGnssCourseSpeed) },
-        vehicle.subscribeMessage(GnssQuality.KEYS)     { GnssQuality.from(it)?.let(listener::onGnssQuality) },
-        vehicle.subscribeMessage(Amb.KEYS)      { Amb.from(it)?.let(listener::onAmb) },
-        vehicle.subscribeMessage(Td.KEYS)       { Td.from(it)?.let(listener::onTd) },
+        vehicle.subscribe(VehicleSpeed.KEY, intervalMs) { it.number?.let { v -> listener.onSpeed(VehicleSpeed(v)) } },
+        vehicle.subscribe(PtoSpeed.KEY, intervalMs)     { it.number?.let { v -> listener.onPto(PtoSpeed(v)) } },
+        vehicle.subscribe(Battery.KEY, intervalMs)      { it.number?.let { v -> listener.onBattery(Battery(v)) } },
+        vehicle.subscribe(Dpf.KEY, intervalMs)          { it.number?.let { v -> listener.onDpf(Dpf(v)) } },
+        vehicle.subscribeMessage(GpsPosition.KEYS, intervalMs) { GpsPosition.from(it)?.let(listener::onPosition) },
+        vehicle.subscribeMessage(Ccvs1.KEYS, intervalMs)    { Ccvs1.from(it)?.let(listener::onCcvs1) },
+        vehicle.subscribeMessage(Ebc1.KEYS, intervalMs)     { Ebc1.from(it)?.let(listener::onEbc1) },
+        vehicle.subscribeMessage(Ebc2.KEYS, intervalMs)     { Ebc2.from(it)?.let(listener::onEbc2) },
+        vehicle.subscribeMessage(Etc1.KEYS, intervalMs)     { Etc1.from(it)?.let(listener::onEtc1) },
+        vehicle.subscribeMessage(Etc2.KEYS, intervalMs)     { Etc2.from(it)?.let(listener::onEtc2) },
+        vehicle.subscribeMessage(Tco1.KEYS, intervalMs)     { Tco1.from(it)?.let(listener::onTco1) },
+        vehicle.subscribeMessage(Vdc2.KEYS, intervalMs)     { Vdc2.from(it)?.let(listener::onVdc2) },
+        vehicle.subscribeMessage(Wbsd.KEYS, intervalMs)     { Wbsd.from(it)?.let(listener::onWbsd) },
+        vehicle.subscribeMessage(Gbsd.KEYS, intervalMs)     { Gbsd.from(it)?.let(listener::onGbsd) },
+        vehicle.subscribeMessage(Mss.KEYS, intervalMs)      { Mss.from(it)?.let(listener::onMss) },
+        vehicle.subscribeMessage(Vdhr.KEYS, intervalMs)     { Vdhr.from(it)?.let(listener::onVdhr) },
+        vehicle.subscribeMessage(Vh.KEYS, intervalMs)       { Vh.from(it)?.let(listener::onVh) },
+        vehicle.subscribeMessage(Vep1.KEYS, intervalMs)     { Vep1.from(it)?.let(listener::onVep1) },
+        vehicle.subscribeMessage(RearPto.KEYS, intervalMs)  { RearPto.from(it)?.let(listener::onRearPto) },
+        vehicle.subscribeMessage(FrontPto.KEYS, intervalMs) { FrontPto.from(it)?.let(listener::onFrontPto) },
+        vehicle.subscribeMessage(Vds.KEYS, intervalMs)      { Vds.from(it)?.let(listener::onVds) },
+        vehicle.subscribeMessage(GnssCourseSpeed.KEYS, intervalMs) { GnssCourseSpeed.from(it)?.let(listener::onGnssCourseSpeed) },
+        vehicle.subscribeMessage(GnssQuality.KEYS, intervalMs)     { GnssQuality.from(it)?.let(listener::onGnssQuality) },
+        vehicle.subscribeMessage(Amb.KEYS, intervalMs)      { Amb.from(it)?.let(listener::onAmb) },
+        vehicle.subscribeMessage(Td.KEYS, intervalMs)       { Td.from(it)?.let(listener::onTd) },
     )
 }

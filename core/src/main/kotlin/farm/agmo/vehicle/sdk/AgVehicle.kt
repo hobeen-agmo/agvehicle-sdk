@@ -46,9 +46,9 @@ class AgVehicle private constructor(private val appContext: Context) {
         @Volatile private var instance: AgVehicle? = null
 
         // leading-edge 게이트 판정 — 시각을 인자로 받는 순수 함수(테스트 대상). 마지막 통과(lastMs)로부터
-        // now-last>=sampleMs 지났으면 통과. gate()가 SystemClock.elapsedRealtime()을 nowMs로 넘긴다.
-        internal fun shouldEmit(lastMs: Long, nowMs: Long, sampleMs: Long): Boolean =
-            nowMs - lastMs >= sampleMs
+        // now-last>=intervalMs 지났으면 통과. gate()가 SystemClock.elapsedRealtime()을 nowMs로 넘긴다.
+        internal fun shouldEmit(lastMs: Long, nowMs: Long, intervalMs: Long): Boolean =
+            nowMs - lastMs >= intervalMs
 
         // subscribeMessage 콜백 병합 — Android 의존 없는 순수 함수라 직접 유닛테스트 가능.
         // latest는 in-place로 갱신(호출부가 동기화해서 부른다). allow=false(게이트 닫힘)면
@@ -174,13 +174,13 @@ class AgVehicle private constructor(private val appContext: Context) {
      * 서비스엔 SUB 1회만 나가고, 마지막 구독자가 닫힐 때 UNSUB 1회 나간다(refcount).
      * 미연결 상태에서 호출해도 되며 연결/재연결 시 자동 반영된다.
      *
-     * @param sampleMs 앱 콜백 최소 간격(ms). 0(기본)이면 오는 값을 전부 전달(하위호환).
-     *   0보다 크면 최대 sampleMs마다 한 번만 최신값을 전달해 UI 숫자 깜빡임을 줄인다
-     *   (leading-edge 게이트: 값이 들어온 순간 now-last>=sampleMs면 통과, 타이머 없음).
+     * @param intervalMs 앱 콜백 최소 간격(ms). 0(기본)이면 오는 값을 전부 전달(하위호환).
+     *   0보다 크면 최대 intervalMs마다 한 번만 최신값을 전달해 UI 숫자 깜빡임을 줄인다
+     *   (leading-edge 게이트: 값이 들어온 순간 now-last>=intervalMs면 통과, 타이머 없음).
      *   게이트 상태는 이 구독 호출마다 독립이라 신호별로 다른 주기를 걸 수 있다.
      */
-    fun subscribe(key: String, sampleMs: Long = 0, onValue: (SignalValue) -> Unit): Subscription {
-        val cb = if (sampleMs > 0) gate(sampleMs, onValue) else onValue
+    fun subscribe(key: String, intervalMs: Long = 0, onValue: (SignalValue) -> Unit): Subscription {
+        val cb = if (intervalMs > 0) gate(intervalMs, onValue) else onValue
         val first = synchronized(lock) {
             val list = valueSubs.getOrPut(key) { mutableListOf() }
             val wasEmpty = list.isEmpty()
@@ -204,13 +204,13 @@ class AgVehicle private constructor(private val appContext: Context) {
      * (한 CAN 메시지의 신호들은 한 프레임으로 같이 오지만 콜백 스레드가 다를 수 있어
      *  최신값 누적은 동기화한다.) 반환 핸들 close()로 전체 해제.
      *
-     * @param sampleMs 앱 콜백 최소 간격(ms). 0(기본)이면 갱신될 때마다 전달(하위호환).
+     * @param intervalMs 앱 콜백 최소 간격(ms). 0(기본)이면 갱신될 때마다 전달(하위호환).
      *   0보다 크면 개별 신호는 전속력으로 받아 최신값에 누적하되, 앱 콜백은 최대
-     *   sampleMs마다 최신 스냅샷 1회만 호출한다(leading-edge, 타이머 없음). 게이트는
+     *   intervalMs마다 최신 스냅샷 1회만 호출한다(leading-edge, 타이머 없음). 게이트는
      *   이 구독 인스턴스 전용이라 RPM은 100ms, 다른 메시지는 다른 주기로 독립 선언 가능.
      */
-    fun subscribeMessage(keys: List<String>, sampleMs: Long = 0, onValues: (Map<String, Double>) -> Unit): Subscription {
-        val allow: () -> Boolean = if (sampleMs > 0) gateAllows(sampleMs) else { { true } }
+    fun subscribeMessage(keys: List<String>, intervalMs: Long = 0, onValues: (Map<String, Double>) -> Unit): Subscription {
+        val allow: () -> Boolean = if (intervalMs > 0) gateAllows(intervalMs) else { { true } }
         val latest = HashMap<String, Double>()
         val mlock = Any()
         val subs = keys.map { key ->
@@ -222,23 +222,23 @@ class AgVehicle private constructor(private val appContext: Context) {
         return Subscription { subs.forEach { it.close() } }
     }
 
-    // leading-edge 스로틀: 값이 들어온 순간 마지막 통과로부터 sampleMs가 지났으면 전달.
+    // leading-edge 스로틀: 값이 들어온 순간 마지막 통과로부터 intervalMs가 지났으면 전달.
     // 타이머·코루틴 없이 단조 시계(SystemClock.elapsedRealtime)만 비교한다. RPM처럼 연속
-    // 갱신되는 신호는 게이트가 열릴 때마다 다음 값이 통과해 실제 ~sampleMs 간격으로 흐른다.
-    private fun <T> gate(sampleMs: Long, downstream: (T) -> Unit): (T) -> Unit {
-        val allow = gateAllows(sampleMs)
+    // 갱신되는 신호는 게이트가 열릴 때마다 다음 값이 통과해 실제 ~intervalMs 간격으로 흐른다.
+    private fun <T> gate(intervalMs: Long, downstream: (T) -> Unit): (T) -> Unit {
+        val allow = gateAllows(intervalMs)
         return { value -> if (allow()) downstream(value) }
     }
 
     // gate()의 통과 판정만 떼어낸 버전 — subscribeMessage처럼 "통과할 때만 값을 만들고 싶은"
     // 호출부가 downstream을 감싸지 않고 직접 pass/fail만 물어볼 수 있게 한다.
-    private fun gateAllows(sampleMs: Long): () -> Boolean {
+    private fun gateAllows(intervalMs: Long): () -> Boolean {
         val glock = Any()
         var last = 0L
         return {
             synchronized(glock) {
                 val now = SystemClock.elapsedRealtime()
-                if (shouldEmit(last, now, sampleMs)) { last = now; true } else false
+                if (shouldEmit(last, now, intervalMs)) { last = now; true } else false
             }
         }
     }

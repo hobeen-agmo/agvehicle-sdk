@@ -14,7 +14,11 @@ import android.content.Context
 import farm.agmo.vehicle.sdk.AgVehicle
 import farm.agmo.vehicle.sdk.Signal
 
-class Engine(context: Context, private val listener: Listener) : Signal(context) {
+class Engine(
+    context: Context,
+    private val listener: Listener,
+    private val intervalMs: Long = 0,   // 앱 콜백 최소 간격(ms). 0=전부 전달, >0=최대 그 간격마다 최신값 1회
+) : Signal(context) {
 
     /** 엔진 콜백 — 필요한 메시지만 override */
     interface Listener {
@@ -38,22 +42,22 @@ class Engine(context: Context, private val listener: Listener) : Signal(context)
     }
 
     override fun subscriptions(): List<AgVehicle.Subscription> = listOf(
-        vehicle.subscribeMessage(Eec1.KEYS) { Eec1.from(it)?.let(listener::onEec1) },
-        vehicle.subscribeMessage(EngineTemperature.KEYS) { EngineTemperature.from(it)?.let(listener::onTemperature) },
-        vehicle.subscribeMessage(EngineOilPressure.KEYS) { EngineOilPressure.from(it)?.let(listener::onOilPressure) },
-        vehicle.subscribeMessage(FuelLevel.KEYS) { FuelLevel.from(it)?.let(listener::onFuelLevel) },
-        vehicle.subscribeMessage(EngineHours.KEYS) { EngineHours.from(it)?.let(listener::onHours) },
-        vehicle.subscribeMessage(EngineTorque.KEYS) { EngineTorque.from(it)?.let(listener::onEngineTorque) },
-        vehicle.subscribeMessage(Eec2.KEYS) { Eec2.from(it)?.let(listener::onEec2) },
-        vehicle.subscribeMessage(Eec3.KEYS) { Eec3.from(it)?.let(listener::onEec3) },
-        vehicle.subscribeMessage(Et1.KEYS) { Et1.from(it)?.let(listener::onEt1) },
-        vehicle.subscribeMessage(Eflp1.KEYS) { Eflp1.from(it)?.let(listener::onEflp1) },
-        vehicle.subscribeMessage(Ic1.KEYS) { Ic1.from(it)?.let(listener::onIc1) },
-        vehicle.subscribeMessage(Lfe.KEYS) { Lfe.from(it)?.let(listener::onLfe) },
-        vehicle.subscribeMessage(Lfc.KEYS) { Lfc.from(it)?.let(listener::onLfc) },
-        vehicle.subscribeMessage(Hours.KEYS) { Hours.from(it)?.let(listener::onHoursRevolutions) },
-        vehicle.subscribeMessage(Dd.KEYS) { Dd.from(it)?.let(listener::onDd) },
-        vehicle.subscribeMessage(Dpf1.KEYS) { Dpf1.from(it)?.let(listener::onDpf1) },
-        vehicle.subscribeMessage(DefTank.KEYS) { DefTank.from(it)?.let(listener::onDefTank) },
+        vehicle.subscribeMessage(Eec1.KEYS, intervalMs) { Eec1.from(it)?.let(listener::onEec1) },
+        vehicle.subscribeMessage(EngineTemperature.KEYS, intervalMs) { EngineTemperature.from(it)?.let(listener::onTemperature) },
+        vehicle.subscribeMessage(EngineOilPressure.KEYS, intervalMs) { EngineOilPressure.from(it)?.let(listener::onOilPressure) },
+        vehicle.subscribeMessage(FuelLevel.KEYS, intervalMs) { FuelLevel.from(it)?.let(listener::onFuelLevel) },
+        vehicle.subscribeMessage(EngineHours.KEYS, intervalMs) { EngineHours.from(it)?.let(listener::onHours) },
+        vehicle.subscribeMessage(EngineTorque.KEYS, intervalMs) { EngineTorque.from(it)?.let(listener::onEngineTorque) },
+        vehicle.subscribeMessage(Eec2.KEYS, intervalMs) { Eec2.from(it)?.let(listener::onEec2) },
+        vehicle.subscribeMessage(Eec3.KEYS, intervalMs) { Eec3.from(it)?.let(listener::onEec3) },
+        vehicle.subscribeMessage(Et1.KEYS, intervalMs) { Et1.from(it)?.let(listener::onEt1) },
+        vehicle.subscribeMessage(Eflp1.KEYS, intervalMs) { Eflp1.from(it)?.let(listener::onEflp1) },
+        vehicle.subscribeMessage(Ic1.KEYS, intervalMs) { Ic1.from(it)?.let(listener::onIc1) },
+        vehicle.subscribeMessage(Lfe.KEYS, intervalMs) { Lfe.from(it)?.let(listener::onLfe) },
+        vehicle.subscribeMessage(Lfc.KEYS, intervalMs) { Lfc.from(it)?.let(listener::onLfc) },
+        vehicle.subscribeMessage(Hours.KEYS, intervalMs) { Hours.from(it)?.let(listener::onHoursRevolutions) },
+        vehicle.subscribeMessage(Dd.KEYS, intervalMs) { Dd.from(it)?.let(listener::onDd) },
+        vehicle.subscribeMessage(Dpf1.KEYS, intervalMs) { Dpf1.from(it)?.let(listener::onDpf1) },
+        vehicle.subscribeMessage(DefTank.KEYS, intervalMs) { DefTank.from(it)?.let(listener::onDefTank) },
     )
 }
