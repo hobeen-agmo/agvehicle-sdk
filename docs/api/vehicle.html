@@ -1,0 +1,674 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>vehicle — AgVehicle SDK Docs</title>
+<style>
+/* AgVehicle SDK docs — shared stylesheet. Neutral dark/light, no brand hue. */
+:root{
+  --bg:#f7f7f8; --panel:#ffffff; --sidebar:#f1f1f3; --ink:#18181b; --mut:#52525b;
+  --dim:#8a8a93; --line:#e5e5e8; --line2:#d4d4d8; --code-bg:#f4f4f5; --code-ink:#27272a;
+  --acc:#3a5bbf; --acc-soft:#eef1fb; --acc-line:#cdd7f2;
+  --warn:#9a7420; --warn-soft:#f7f1e2; --danger:#b4544e;
+  --str:#9a742b; --sig-bg:#fbfbfc;
+  --mono:ui-monospace,"SF Mono",SFMono-Regular,Menlo,"JetBrains Mono",Consolas,monospace;
+  --sans:system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",sans-serif;
+}
+@media (prefers-color-scheme: dark){
+  :root{
+    --bg:#0d0d10; --panel:#151519; --sidebar:#101013; --ink:#e9e9ec; --mut:#a1a1aa;
+    --dim:#71717a; --line:#26262b; --line2:#35353c; --code-bg:#121216; --code-ink:#d4d4d8;
+    --acc:#93a8f0; --acc-soft:#161e33; --acc-line:#2c3a63;
+    --warn:#d3b06a; --warn-soft:#221c0e; --danger:#e0736c;
+    --str:#cbb079; --sig-bg:#111115;
+  }
+}
+:root[data-theme="light"]{
+  --bg:#f7f7f8; --panel:#ffffff; --sidebar:#f1f1f3; --ink:#18181b; --mut:#52525b;
+  --dim:#8a8a93; --line:#e5e5e8; --line2:#d4d4d8; --code-bg:#f4f4f5; --code-ink:#27272a;
+  --acc:#3a5bbf; --acc-soft:#eef1fb; --acc-line:#cdd7f2;
+  --warn:#9a7420; --warn-soft:#f7f1e2; --danger:#b4544e; --str:#9a742b; --sig-bg:#fbfbfc;
+}
+:root[data-theme="dark"]{
+  --bg:#0d0d10; --panel:#151519; --sidebar:#101013; --ink:#e9e9ec; --mut:#a1a1aa;
+  --dim:#71717a; --line:#26262b; --line2:#35353c; --code-bg:#121216; --code-ink:#d4d4d8;
+  --acc:#93a8f0; --acc-soft:#161e33; --acc-line:#2c3a63;
+  --warn:#d3b06a; --warn-soft:#221c0e; --danger:#e0736c; --str:#cbb079; --sig-bg:#111115;
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--sans);
+  font-size:15px;line-height:1.65;-webkit-font-smoothing:antialiased}
+a{color:var(--acc);text-decoration:none}
+a:hover{text-decoration:underline}
+code,kbd{font-family:var(--mono);font-size:.88em}
+.mono{font-family:var(--mono)}
+
+/* layout */
+.shell{display:grid;grid-template-columns:288px minmax(0,1fr);max-width:1360px;margin:0 auto;min-height:100vh}
+.side{position:sticky;top:0;align-self:start;height:100vh;overflow-y:auto;background:var(--sidebar);
+  border-right:1px solid var(--line);padding:26px 20px 60px}
+.main{padding:0 clamp(20px,4vw,64px) 120px;min-width:0}
+@media (max-width:860px){
+  .shell{grid-template-columns:1fr}
+  .side{position:static;height:auto;border-right:0;border-bottom:1px solid var(--line)}
+}
+
+/* sidebar */
+.brand{display:flex;align-items:center;gap:10px;margin-bottom:6px}
+.brand a{display:flex;align-items:center;gap:10px;color:inherit}
+.brand a:hover{text-decoration:none}
+.brand .logo{width:30px;height:30px;border-radius:8px;background:var(--ink);color:var(--bg);
+  display:grid;place-items:center;font-weight:800;font-size:14px;flex:none;font-family:var(--mono)}
+.brand b{font-size:16px;letter-spacing:-.01em}
+.ver{color:var(--dim);font-family:var(--mono);font-size:11px;margin:2px 0 20px 40px}
+.nav{display:flex;flex-direction:column;gap:1px}
+.nav .grp{color:var(--dim);font-size:10.5px;font-weight:700;letter-spacing:.09em;
+  text-transform:uppercase;margin:16px 0 5px;padding-left:9px}
+.nav a{color:var(--mut);padding:5px 9px;border-radius:7px;font-size:13.5px;
+  border-left:2px solid transparent;line-height:1.35}
+.nav a:hover{background:var(--panel);color:var(--ink);text-decoration:none}
+.nav a.active{color:var(--acc);background:var(--acc-soft);border-left-color:var(--acc);font-weight:600}
+.nav a.sub{padding-left:20px;font-size:12.5px;color:var(--dim)}
+.nav a .mono{font-size:12px}
+
+/* page header */
+.crumb{font-family:var(--mono);font-size:12px;color:var(--dim);margin:38px 0 4px}
+.crumb a{color:var(--dim)}
+h1{font-size:34px;line-height:1.12;letter-spacing:-.025em;margin:0 0 12px;font-weight:800;text-wrap:balance}
+.lead{font-size:17px;color:var(--mut);max-width:66ch;margin:8px 0 0}
+.hero{padding:40px 0 30px;border-bottom:1px solid var(--line);margin-bottom:8px}
+.hero h1{font-size:38px}
+.pathline{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-top:22px;font-family:var(--mono);font-size:12.5px;color:var(--mut)}
+.pathline .node{background:var(--panel);border:1px solid var(--line2);border-radius:7px;padding:5px 11px;white-space:nowrap}
+.pathline .node.hl{border-color:var(--acc-line);background:var(--acc-soft);color:var(--acc);font-weight:600}
+.pathline .arw{color:var(--dim)}
+
+/* sections */
+section{padding-top:44px}
+section>h2,h2{font-size:25px;letter-spacing:-.02em;margin:0 0 6px;font-weight:800;scroll-margin-top:20px}
+.kicker{color:var(--acc);font-family:var(--mono);font-size:12px;font-weight:700;letter-spacing:.04em;margin-bottom:8px}
+h3{font-size:18px;margin:32px 0 8px;letter-spacing:-.01em;scroll-margin-top:20px}
+h4{font-size:13px;margin:22px 0 6px;color:var(--mut);text-transform:uppercase;letter-spacing:.05em}
+p{margin:10px 0}
+.sub{color:var(--mut)}
+
+/* quickstart steps */
+.steps{counter-reset:step;display:flex;flex-direction:column;gap:20px;margin:20px 0}
+.step{position:relative;padding-left:46px}
+.step::before{counter-increment:step;content:counter(step);position:absolute;left:0;top:-2px;
+  width:30px;height:30px;border-radius:8px;background:var(--ink);color:var(--bg);
+  display:grid;place-items:center;font-weight:800;font-size:14px;font-family:var(--mono)}
+.step h3{margin:2px 0 6px}
+.step pre{margin-top:10px}
+
+/* code */
+pre{background:var(--code-bg);border:1px solid var(--line);border-radius:12px;padding:16px 18px;
+  overflow-x:auto;margin:14px 0;line-height:1.55}
+pre code{color:var(--code-ink);font-size:13px}
+.tok-k{color:var(--acc);font-weight:600}
+.tok-t{color:var(--ink);font-weight:600}
+.tok-c{color:var(--dim);font-style:italic}
+.tok-s{color:var(--str)}
+:not(pre)>code{background:var(--code-bg);border:1px solid var(--line);border-radius:5px;
+  padding:.5px 5px;color:var(--code-ink)}
+
+/* signature block */
+.sig{background:var(--sig-bg);border:1px solid var(--line2);border-radius:12px;margin:20px 0;overflow:hidden}
+.sig>.sig-h{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;padding:13px 18px;
+  border-bottom:1px solid var(--line);background:var(--panel)}
+.sig-h .name{font-family:var(--mono);font-size:15px;font-weight:700;color:var(--ink)}
+.sig-h .tag{font-family:var(--mono);font-size:10.5px;font-weight:700;padding:2px 7px;border-radius:999px;letter-spacing:.03em;border:1px solid var(--line2)}
+.tag.read{color:var(--mut);background:var(--code-bg)}
+.tag.ctrl{color:var(--acc);background:var(--acc-soft);border-color:var(--acc-line)}
+.tag.oem{color:var(--mut);background:transparent;border-style:dashed}
+.tag.enum{color:var(--warn);background:var(--warn-soft);border-color:transparent}
+.sig-h .spring{flex:1}
+.sig-h .mod{font-family:var(--mono);font-size:11.5px;color:var(--dim)}
+.sig-h .pgn{font-family:var(--mono);font-size:11px;color:var(--dim);background:var(--code-bg);border:1px solid var(--line);border-radius:5px;padding:1px 6px}
+.sig-body{padding:6px 18px 16px}
+.sig-body pre{background:var(--code-bg);margin:12px 0}
+.sig-body>p:first-child{margin-top:12px}
+
+/* tables */
+table{border-collapse:collapse;width:100%;margin:12px 0;font-size:13.5px}
+th,td{text-align:left;padding:8px 12px;border-bottom:1px solid var(--line);vertical-align:top}
+th{color:var(--dim);font-size:11px;text-transform:uppercase;letter-spacing:.05em;font-weight:700}
+td.p{font-family:var(--mono);color:var(--code-ink);white-space:nowrap;font-size:12.5px}
+td .ty,.ty{color:var(--mut);font-family:var(--mono);font-size:12px}
+td.u{font-family:var(--mono);color:var(--dim);font-size:12px;white-space:nowrap}
+.tblwrap{overflow-x:auto;border:1px solid var(--line);border-radius:12px;margin:14px 0}
+.tblwrap table{margin:0}
+.tblwrap th,.tblwrap td{padding:9px 14px}
+.tblwrap tr:last-child td{border-bottom:0}
+
+/* callouts */
+.note{border:1px solid var(--line2);border-left:3px solid var(--mut);background:var(--code-bg);
+  border-radius:8px;padding:11px 15px;margin:16px 0;font-size:13.5px}
+.note.warn{border-left-color:var(--warn);background:var(--warn-soft)}
+.note.info{border-left-color:var(--acc);background:var(--acc-soft)}
+.note b{color:var(--ink)}
+.note .lbl{font-weight:700;font-size:11px;letter-spacing:.05em;text-transform:uppercase;margin-right:6px;color:var(--mut)}
+.note.info .lbl{color:var(--acc)}
+
+/* module grid (index) */
+.mods{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:14px;margin:18px 0}
+.mod{display:block;background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:15px 16px;color:inherit;transition:border-color .12s}
+.mod:hover{border-color:var(--acc-line);text-decoration:none}
+.mod .co{font-family:var(--mono);font-size:13px;font-weight:700;color:var(--ink)}
+.mod .std{font-size:10px;font-weight:700;letter-spacing:.05em;padding:1px 6px;border-radius:999px;margin-left:6px;
+  color:var(--mut);background:var(--code-bg);border:1px solid var(--line2)}
+.mod .oemb{color:var(--acc);background:var(--acc-soft);border-color:var(--acc-line)}
+.mod .d{color:var(--mut);font-size:12.5px;margin-top:6px;line-height:1.5}
+.mod .n{font-size:11px;color:var(--dim);margin-top:8px;font-family:var(--mono)}
+
+/* tier ladder */
+.ladder{display:flex;flex-direction:column;gap:8px;margin:16px 0}
+.rung{display:flex;align-items:center;gap:14px;border:1px solid var(--line2);border-radius:10px;
+  padding:12px 16px;background:var(--panel)}
+.rung .rk{font-family:var(--mono);font-weight:800;font-size:15px;width:66px;flex:none}
+.rung .nm{font-weight:700}
+.rung .ds{color:var(--mut);font-size:13px;margin-left:auto;text-align:right}
+.rung.safety{border-color:color-mix(in srgb,var(--danger) 45%,var(--line2))}.rung.safety .rk{color:var(--danger)}
+.rung.app{border-color:var(--acc-line)}.rung.app .rk{color:var(--acc)}
+.rung.system .rk{color:var(--dim)}
+
+/* page nav (prev/next) */
+.pagenav{display:flex;justify-content:space-between;gap:14px;margin-top:56px;padding-top:22px;border-top:1px solid var(--line)}
+.pagenav a{flex:1;border:1px solid var(--line);border-radius:10px;padding:12px 16px;color:inherit}
+.pagenav a:hover{border-color:var(--acc-line);text-decoration:none}
+.pagenav .lb{font-size:11px;color:var(--dim);text-transform:uppercase;letter-spacing:.05em}
+.pagenav .tt{font-weight:700;color:var(--acc);margin-top:2px}
+.pagenav .next{text-align:right}
+
+.pill{display:inline-block;font-family:var(--mono);font-size:11px;color:var(--acc);
+  background:var(--acc-soft);border:1px solid var(--acc-line);border-radius:999px;padding:1px 8px}
+.foot{margin-top:40px;padding-top:20px;border-top:1px solid var(--line);color:var(--dim);font-size:12.5px}
+:target{scroll-margin-top:16px}
+::selection{background:var(--acc-soft)}
+
+</style>
+</head>
+<body>
+<div class="shell">
+<aside class="side">
+  <div class="brand"><a href="index.html"><span class="logo">Ag</span><b>AgVehicle SDK</b></a></div>
+  <div class="ver">farm.agmo.vehicle · v0.1.x</div>
+  <nav class="nav">
+    <div class="grp">시작</div>
+    <a href="index.html">개요 · Quickstart</a>
+    <a href="index.html#install">설치 (Gradle)</a>
+    <a href="index.html#modules">모듈 구성</a>
+    <div class="grp">핵심 (core)</div>
+    <a href="core.html">AgVehicle · 연결</a>
+    <a class="sub" href="core.html#reading">신호 읽기 · subscribe</a>
+    <a class="sub" href="core.html#throttle">갱신 스로틀 · intervalMs</a>
+    <a class="sub" href="core.html#control">제어 세션 · acquire</a>
+    <a class="sub" href="core.html#catalog">카탈로그 · 동적 정의</a>
+    <a class="sub" href="core.html#types">코어 타입</a>
+    <div class="grp">도메인 모델 (표준)</div>
+    <a href="engine.html"><span class="mono">:engine</span></a>
+    <a class="active" href="vehicle.html"><span class="mono">:vehicle</span></a>
+    <a href="hitch.html"><span class="mono">:hitch</span></a>
+    <a href="imu.html"><span class="mono">:imu</span> · <span class="mono">:gpio</span></a>
+    <a href="flow.html"><span class="mono">:flow</span></a>
+    <div class="grp">OEM (제조사 고유)</div>
+    <a href="oem-tractor.html"><span class="mono">:oem-tractor</span></a>
+    <a href="oem-steer.html"><span class="mono">:oem-steer</span></a>
+    <a href="oem-spreader.html"><span class="mono">:oem-spreader</span></a>
+    <a href="oem-imu.html"><span class="mono">:oem-imu</span></a>
+    <a href="oem-genericio.html"><span class="mono">:oem-genericio</span></a>
+    <div class="grp">제어 정책</div>
+    <a href="policy.html">자격 · 실행레벨(Tier)</a>
+  </nav>
+</aside>
+
+<main class="main">
+  <div class="crumb"><a href="index.html">Docs</a> / :vehicle</div>
+  <h1>vehicle — 차량 상태</h1>
+  <p class="lead">vehicle은 차속, PTO, 배터리, DPF, GPS, 변속 등 <b>엔진과 히치를 제외한 차량 전반의 상태</b>를 읽는 표준 도메인 모듈이다. 모든 신호가 읽기 전용이며, 쓰기(제어) API는 없다.</p>
+  <div class="note warn"><span class="lbl">범위 밖</span> <b>4WD와 AutoLift 제어는 이 도메인에 없다.</b> 4WD는 실차 CAN에 매핑되어 있지 않아 지원하지 않으며, AutoLift는 조향각, FNR, 히치 조합의 앱 레벨 기능(<code>:oem-tractor</code>의 <code>Tractor.autoLift</code>)이다.</div>
+
+  <section id="vehicle">
+    <div class="kicker">클래스</div>
+    <h2>Vehicle</h2>
+    <p>도메인 객체 하나로 이 페이지의 모든 신호를 구독한다. <code>Signal</code>을 상속하며 <code>lifecycle.addObserver(vehicle)</code> 한 줄로 <code>ON_START</code>에 구독, <code>ON_STOP</code>에 해제된다.</p>
+    <div class="sig" id="Vehicle">
+      <div class="sig-h">
+        <span class="name">Vehicle(context: Context, intervalMs: Long = 0)</span>
+        <span class="tag read">read</span>
+        <span class="spring"></span>
+        <span class="mod">:vehicle</span>
+      </div>
+      <div class="sig-body">
+        <p>등록 방식은 두 가지이며, 두 방식은 기능적으로 동등하다.</p>
+        <div class="tblwrap"><table>
+          <tr><th>방식</th><th>생성 · 등록</th></tr>
+          <tr><td class="p">람다</td><td><code>Vehicle(context, intervalMs)</code> + <code>vehicle.onSpeed { }</code> — 필요한 신호만, 체이닝 가능</td></tr>
+          <tr><td class="p">리스너</td><td><code>Vehicle(context, listener: Listener, intervalMs)</code> — 여러 신호를 한 객체에서 override</td></tr>
+        </table></div>
+        <p>콜백마다 대응하는 람다 메서드가 있다. <code>onSpeed { }</code>, <code>onBattery { }</code>, <code>onPto { }</code> 등이 있으며, 아래 <code>Listener</code> 표의 <code>on…</code> 이름과 1:1로 대응한다. 람다 방식은 <b>등록한 신호만</b> 구독한다.</p>
+        <p><code>intervalMs</code>는 앱 콜백의 최소 간격(ms)을 지정한다. <code>0</code>이면 신호가 올 때마다 전부 전달하고, <code>&gt;0</code>이면 최대 그 간격마다 최신값을 한 번만 전달한다(<a href="core.html#throttle">core.html#throttle</a> 참고).</p>
+        <p>콜백은 binder 스레드에서 호출되므로 UI 갱신은 <code>runOnUiThread</code>로 감싼다.</p>
+      </div>
+    </div>
+
+    <h3 id="Listener">Vehicle.Listener</h3>
+    <p>필요한 콜백만 <code>override</code>하면 된다. 나머지는 <code>Listener</code> 인터페이스의 기본 구현(no-op)이 처리한다.</p>
+    <div class="tblwrap">
+      <table>
+        <thead><tr><th>콜백</th><th>파라미터</th><th>대응 클래스</th></tr></thead>
+        <tbody>
+          <tr><td class="p">onSpeed</td><td class="ty">speed: VehicleSpeed</td><td><a href="#VehicleSpeed">VehicleSpeed</a></td></tr>
+          <tr><td class="p">onPto</td><td class="ty">pto: PtoSpeed</td><td><a href="#PtoSpeed">PtoSpeed</a></td></tr>
+          <tr><td class="p">onBattery</td><td class="ty">battery: Battery</td><td><a href="#Battery">Battery</a></td></tr>
+          <tr><td class="p">onDpf</td><td class="ty">dpf: Dpf</td><td><a href="#Dpf">Dpf</a></td></tr>
+          <tr><td class="p">onPosition</td><td class="ty">position: GpsPosition</td><td><a href="#GpsPosition">GpsPosition</a></td></tr>
+          <tr><td class="p">onCcvs1</td><td class="ty">ccvs1: Ccvs1</td><td><a href="#Ccvs1">Ccvs1</a></td></tr>
+          <tr><td class="p">onEbc1</td><td class="ty">ebc1: Ebc1</td><td><a href="#Ebc1">Ebc1</a></td></tr>
+          <tr><td class="p">onEbc2</td><td class="ty">ebc2: Ebc2</td><td><a href="#Ebc2">Ebc2</a></td></tr>
+          <tr><td class="p">onEtc1</td><td class="ty">etc1: Etc1</td><td><a href="#Etc1">Etc1</a></td></tr>
+          <tr><td class="p">onEtc2</td><td class="ty">etc2: Etc2</td><td><a href="#Etc2">Etc2</a></td></tr>
+          <tr><td class="p">onTco1</td><td class="ty">tco1: Tco1</td><td><a href="#Tco1">Tco1</a></td></tr>
+          <tr><td class="p">onVdc2</td><td class="ty">vdc2: Vdc2</td><td><a href="#Vdc2">Vdc2</a></td></tr>
+          <tr><td class="p">onWbsd</td><td class="ty">wbsd: Wbsd</td><td><a href="#Wbsd">Wbsd</a></td></tr>
+          <tr><td class="p">onGbsd</td><td class="ty">gbsd: Gbsd</td><td><a href="#Gbsd">Gbsd</a></td></tr>
+          <tr><td class="p">onMss</td><td class="ty">mss: Mss</td><td><a href="#Mss">Mss</a></td></tr>
+          <tr><td class="p">onVdhr</td><td class="ty">vdhr: Vdhr</td><td><a href="#Vdhr">Vdhr</a></td></tr>
+          <tr><td class="p">onVh</td><td class="ty">vh: Vh</td><td><a href="#Vh">Vh</a></td></tr>
+          <tr><td class="p">onVep1</td><td class="ty">vep1: Vep1</td><td><a href="#Vep1">Vep1</a></td></tr>
+          <tr><td class="p">onRearPto</td><td class="ty">rearPto: RearPto</td><td><a href="#RearPto">RearPto</a></td></tr>
+          <tr><td class="p">onFrontPto</td><td class="ty">frontPto: FrontPto</td><td><a href="#FrontPto">FrontPto</a></td></tr>
+          <tr><td class="p">onVds</td><td class="ty">vds: Vds</td><td><a href="#Vds">Vds</a></td></tr>
+          <tr><td class="p">onGnssCourseSpeed</td><td class="ty">courseSpeed: GnssCourseSpeed</td><td><a href="#GnssCourseSpeed">GnssCourseSpeed</a></td></tr>
+          <tr><td class="p">onGnssQuality</td><td class="ty">quality: GnssQuality</td><td><a href="#GnssQuality">GnssQuality</a></td></tr>
+          <tr><td class="p">onAmb</td><td class="ty">amb: Amb</td><td><a href="#Amb">Amb</a></td></tr>
+          <tr><td class="p">onTd</td><td class="ty">td: Td</td><td><a href="#Td">Td</a></td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h3>사용 예제</h3>
+    <p>필요한 신호만 <code>onXxx { }</code> <b>람다</b>로 등록한다. <code>object</code> 선언이나 <code>override</code> 없이 등록할 수 있고, 여러 메서드를 이어서 호출(체이닝)할 수 있다.</p>
+<pre><code><span class="tok-k">val</span> vehicle = Vehicle(<span class="tok-k">this</span>, intervalMs = <span class="tok-s">200</span>)
+vehicle.onSpeed { s -> runOnUiThread { render(s.kmh) } }
+      .onBattery { b -> runOnUiThread { render(b.volts) } }
+      .onDpf { d -> runOnUiThread { <span class="tok-k">if</span> (d.warning) showWarn() } }
+lifecycle.addObserver(vehicle)   <span class="tok-c">// ← 이 한 줄이 구독/해제 전부</span></code></pre>
+    <p class="sub"><b>여러 신호</b>를 한 객체에서 다루려면 아래와 같이 <b>리스너</b> 방식으로 등록할 수도 있다. 두 방식은 기능적으로 동등하다.</p>
+<pre><code><span class="tok-k">val</span> vehicle = Vehicle(<span class="tok-k">this</span>, <span class="tok-k">object</span> : Vehicle.Listener {
+    <span class="tok-k">override fun</span> onSpeed(s: <span class="tok-t">VehicleSpeed</span>) = runOnUiThread { render(s.kmh) }
+    <span class="tok-k">override fun</span> onBattery(b: <span class="tok-t">Battery</span>)    = runOnUiThread { render(b.volts) }
+    <span class="tok-k">override fun</span> onDpf(d: <span class="tok-t">Dpf</span>)            = runOnUiThread { <span class="tok-k">if</span> (d.warning) showWarn() }
+}, intervalMs = <span class="tok-s">200</span>)
+lifecycle.addObserver(vehicle)   <span class="tok-c">// ← 이 한 줄이 구독/해제 전부</span></code></pre>
+  </section>
+
+  <section id="types">
+    <div class="kicker">데이터 클래스</div>
+    <h2>신호 클래스</h2>
+    <p>각 클래스는 CAN 메시지(ID) 하나에 대응한다. <code>KEY</code>(단일 필드) 또는 <code>KEYS</code> + <code>from()</code>(풀 메시지)로 구독한다.</p>
+
+    <div class="sig" id="VehicleSpeed">
+      <div class="sig-h"><span class="name">VehicleSpeed</span><span class="tag read">read</span><span class="spring"></span><span class="pgn">CCVS1 · 0xFEF1</span><span class="mod">:vehicle</span></div>
+      <div class="sig-body">
+        <p>차량 속도를 나타낸다. CCVS1 메시지의 <code>VEHSPEED</code> 필드만 뽑은 단일 값이다.</p>
+        <div class="tblwrap"><table><thead><tr><th>필드</th><th>타입</th><th>단위</th><th>설명</th></tr></thead>
+          <tbody><tr><td class="p">kmh</td><td class="ty">Double</td><td class="u">km/h</td><td>차속</td></tr></tbody>
+        </table></div>
+        <p class="sub">콜백 <code>Listener.onSpeed(speed: VehicleSpeed)</code> · KEY <code>"VEHSPEED"</code></p>
+      </div>
+    </div>
+
+    <div class="sig" id="PtoSpeed">
+      <div class="sig-h"><span class="name">PtoSpeed</span><span class="tag read">read</span><span class="spring"></span><span class="pgn">0xFE43</span><span class="mod">:vehicle</span></div>
+      <div class="sig-body">
+        <p>후방 PTO 회전수를 나타낸다.</p>
+        <div class="tblwrap"><table><thead><tr><th>필드</th><th>타입</th><th>단위</th><th>설명</th></tr></thead>
+          <tbody><tr><td class="p">rpm</td><td class="ty">Double</td><td class="u">rpm</td><td>PTO 회전수</td></tr></tbody>
+        </table></div>
+        <p class="sub">콜백 <code>Listener.onPto(pto: PtoSpeed)</code> · KEY <code>"PTO"</code></p>
+      </div>
+    </div>
+
+    <div class="sig" id="Battery">
+      <div class="sig-h"><span class="name">Battery</span><span class="tag read">read</span><span class="spring"></span><span class="pgn">VEP1 · 0xFEF7</span><span class="mod">:vehicle</span></div>
+      <div class="sig-body">
+        <p>배터리 전압을 나타낸다. VEP1 메시지의 <code>BATT</code> 필드만 뽑은 단일 값이며, <a href="#Vep1">Vep1</a>과 값이 중복된다.</p>
+        <div class="tblwrap"><table><thead><tr><th>필드</th><th>타입</th><th>단위</th><th>설명</th></tr></thead>
+          <tbody><tr><td class="p">volts</td><td class="ty">Double</td><td class="u">V</td><td>배터리 전압</td></tr></tbody>
+        </table></div>
+        <p class="sub">콜백 <code>Listener.onBattery(battery: Battery)</code> · KEY <code>"BATT"</code></p>
+      </div>
+    </div>
+
+    <div class="sig" id="Dpf">
+      <div class="sig-h"><span class="name">Dpf</span><span class="tag read">read</span><span class="spring"></span><span class="pgn">DPF1 · 0xFD7B</span><span class="mod">:vehicle</span></div>
+      <div class="sig-body">
+        <p>DPF(매연저감장치)의 그을음 적재율을 나타낸다. <code>warning</code>은 저장된 필드가 아니라 <code>sootPercent &gt;= WARN_THRESHOLD</code>로 계산되는 파생 프로퍼티다.</p>
+        <div class="tblwrap"><table><thead><tr><th>필드</th><th>타입</th><th>단위</th><th>설명</th></tr></thead>
+          <tbody>
+            <tr><td class="p">sootPercent</td><td class="ty">Double</td><td class="u">%</td><td>그을음 적재율</td></tr>
+            <tr><td class="p">warning</td><td class="ty">Boolean (get)</td><td class="u">—</td><td>sootPercent ≥ WARN_THRESHOLD(80.0) — 실차 기준으로 조정 필요</td></tr>
+          </tbody>
+        </table></div>
+        <p class="sub">콜백 <code>Listener.onDpf(dpf: Dpf)</code> · KEY <code>"DPFSOOT"</code></p>
+      </div>
+    </div>
+
+    <div class="sig" id="GpsPosition">
+      <div class="sig-h"><span class="name">GpsPosition</span><span class="tag read">read</span><span class="spring"></span><span class="pgn">VehiclePosition · 0xFEF3</span><span class="mod">:vehicle</span></div>
+      <div class="sig-body">
+        <p>GPS 위경도를 나타낸다. CAN 버스로 수신하며, 안드로이드 위치 API가 아니다.</p>
+        <div class="tblwrap"><table><thead><tr><th>필드</th><th>타입</th><th>단위</th><th>설명</th></tr></thead>
+          <tbody>
+            <tr><td class="p">latitude</td><td class="ty">Double</td><td class="u">deg</td><td>위도</td></tr>
+            <tr><td class="p">longitude</td><td class="ty">Double</td><td class="u">deg</td><td>경도</td></tr>
+          </tbody>
+        </table></div>
+        <p class="sub">콜백 <code>Listener.onPosition(position: GpsPosition)</code> · KEYS <code>"GPS_LAT", "GPS_LON"</code></p>
+      </div>
+    </div>
+
+    <div class="sig" id="Ccvs1">
+      <div class="sig-h"><span class="name">Ccvs1</span><span class="tag read">read</span><span class="spring"></span><span class="pgn">CCVS1 · 0xFEF1</span><span class="mod">:vehicle</span></div>
+      <div class="sig-body">
+        <p>CCVS1 풀 메시지(SPN 84/70/595/597/598/86)이며, 차속 외에 파크브레이크와 크루즈 상태까지 담는다. <code>speedKmh</code>는 <a href="#VehicleSpeed">VehicleSpeed</a>와 값이 중복된다.</p>
+        <div class="tblwrap"><table><thead><tr><th>필드</th><th>타입</th><th>단위</th><th>설명</th></tr></thead>
+          <tbody>
+            <tr><td class="p">speedKmh</td><td class="ty">Double</td><td class="u">km/h</td><td>차속</td></tr>
+            <tr><td class="p">parkBrake</td><td class="ty">Boolean</td><td class="u">—</td><td>주차 브레이크 작동 여부</td></tr>
+            <tr><td class="p">cruiseActive</td><td class="ty">Boolean</td><td class="u">—</td><td>크루즈 컨트롤 활성 여부</td></tr>
+            <tr><td class="p">brakeSwitch</td><td class="ty">Boolean</td><td class="u">—</td><td>브레이크 스위치 상태</td></tr>
+            <tr><td class="p">clutchSwitch</td><td class="ty">Boolean</td><td class="u">—</td><td>클러치 스위치 상태</td></tr>
+            <tr><td class="p">cruiseSetKmh</td><td class="ty">Double</td><td class="u">km/h</td><td>크루즈 설정 속도</td></tr>
+          </tbody>
+        </table></div>
+        <p class="sub">콜백 <code>Listener.onCcvs1(ccvs1: Ccvs1)</code> · KEYS <code>"VEHSPEED", "PARKBRAKE", "CRUISEACTIVE", "BRAKESWITCH", "CLUTCHSWITCH", "CRUISESETSPD"</code></p>
+      </div>
+    </div>
+
+    <div class="sig" id="Ebc1">
+      <div class="sig-h"><span class="name">Ebc1</span><span class="tag read">read</span><span class="spring"></span><span class="pgn">EBC1 · 0xF001</span><span class="mod">:vehicle</span></div>
+      <div class="sig-body">
+        <p>EBC1(SPN 563/521) 메시지로, ABS 작동 여부와 브레이크 페달 답입률을 담는다.</p>
+        <div class="tblwrap"><table><thead><tr><th>필드</th><th>타입</th><th>단위</th><th>설명</th></tr></thead>
+          <tbody>
+            <tr><td class="p">absActive</td><td class="ty">Boolean</td><td class="u">—</td><td>ABS 작동 여부</td></tr>
+            <tr><td class="p">brakePedalPercent</td><td class="ty">Double</td><td class="u">%</td><td>브레이크 페달 답입률</td></tr>
+          </tbody>
+        </table></div>
+        <p class="sub">콜백 <code>Listener.onEbc1(ebc1: Ebc1)</code> · KEYS <code>"ABSACTIVE", "BRAKEPEDAL"</code></p>
+      </div>
+    </div>
+
+    <div class="sig" id="Ebc2">
+      <div class="sig-h"><span class="name">Ebc2</span><span class="tag read">read</span><span class="spring"></span><span class="pgn">EBC2 · 0xFEBF</span><span class="mod">:vehicle</span></div>
+      <div class="sig-body">
+        <p>EBC2(SPN 904) 메시지로, 전륜축 기준 차속을 담는다.</p>
+        <div class="tblwrap"><table><thead><tr><th>필드</th><th>타입</th><th>단위</th><th>설명</th></tr></thead>
+          <tbody><tr><td class="p">frontAxleKmh</td><td class="ty">Double</td><td class="u">km/h</td><td>전륜축 기준 차속</td></tr></tbody>
+        </table></div>
+        <p class="sub">콜백 <code>Listener.onEbc2(ebc2: Ebc2)</code> · KEYS <code>"WHEELSPD_FRONT"</code></p>
+      </div>
+    </div>
+
+    <div class="sig" id="Etc1">
+      <div class="sig-h"><span class="name">Etc1</span><span class="tag read">read</span><span class="spring"></span><span class="pgn">ETC1 · 0xF002</span><span class="mod">:vehicle</span></div>
+      <div class="sig-body">
+        <p>ETC1(SPN 560/191/161) 메시지로, 동력전달계 체결 여부와 출력축, 입력축 회전수를 담는다.</p>
+        <div class="tblwrap"><table><thead><tr><th>필드</th><th>타입</th><th>단위</th><th>설명</th></tr></thead>
+          <tbody>
+            <tr><td class="p">drivelineEngaged</td><td class="ty">Boolean</td><td class="u">—</td><td>동력전달계 체결 여부</td></tr>
+            <tr><td class="p">outputShaftRpm</td><td class="ty">Double</td><td class="u">rpm</td><td>변속기 출력축 회전수</td></tr>
+            <tr><td class="p">inputShaftRpm</td><td class="ty">Double</td><td class="u">rpm</td><td>변속기 입력축 회전수</td></tr>
+          </tbody>
+        </table></div>
+        <p class="sub">콜백 <code>Listener.onEtc1(etc1: Etc1)</code> · KEYS <code>"DRIVELINE", "TRANS_OUTSPD", "TRANS_INSPD"</code></p>
+      </div>
+    </div>
+
+    <div class="sig" id="Etc2">
+      <div class="sig-h"><span class="name">Etc2</span><span class="tag read">read</span><span class="spring"></span><span class="pgn">ETC2 · 0xF005</span><span class="mod">:vehicle</span></div>
+      <div class="sig-body">
+        <p>ETC2(SPN 524/526/523) 메시지로, 선택 기어, 현재 기어, 기어비를 담는다.</p>
+        <div class="tblwrap"><table><thead><tr><th>필드</th><th>타입</th><th>단위</th><th>설명</th></tr></thead>
+          <tbody>
+            <tr><td class="p">selectedGear</td><td class="ty">Int</td><td class="u">—</td><td>선택 기어</td></tr>
+            <tr><td class="p">gearRatio</td><td class="ty">Double</td><td class="u">—</td><td>기어비</td></tr>
+            <tr><td class="p">currentGear</td><td class="ty">Int</td><td class="u">—</td><td>현재 기어</td></tr>
+          </tbody>
+        </table></div>
+        <p class="sub">콜백 <code>Listener.onEtc2(etc2: Etc2)</code> · KEYS <code>"GEARSEL", "GEARRATIO", "GEARCUR"</code></p>
+      </div>
+    </div>
+
+    <div class="sig" id="Tco1">
+      <div class="sig-h"><span class="name">Tco1</span><span class="tag read">read</span><span class="spring"></span><span class="pgn">TCO1 · 0xFE6C</span><span class="mod">:vehicle</span></div>
+      <div class="sig-body">
+        <p>TCO1(SPN 1624) 메시지로, 타코그래프용 차속을 담는다.</p>
+        <div class="tblwrap"><table><thead><tr><th>필드</th><th>타입</th><th>단위</th><th>설명</th></tr></thead>
+          <tbody><tr><td class="p">speedKmh</td><td class="ty">Double</td><td class="u">km/h</td><td>타코그래프 차속</td></tr></tbody>
+        </table></div>
+        <p class="sub">콜백 <code>Listener.onTco1(tco1: Tco1)</code> · KEYS <code>"TACHOSPD"</code></p>
+      </div>
+    </div>
+
+    <div class="sig" id="Vdc2">
+      <div class="sig-h"><span class="name">Vdc2</span><span class="tag read">read</span><span class="spring"></span><span class="pgn">VDC2 · 0xF009</span><span class="mod">:vehicle</span></div>
+      <div class="sig-body">
+        <p>VDC2(SPN 1807/1808/1809) 메시지로, 조향각, 요레이트, 횡가속도를 담는다.</p>
+        <div class="tblwrap"><table><thead><tr><th>필드</th><th>타입</th><th>단위</th><th>설명</th></tr></thead>
+          <tbody>
+            <tr><td class="p">steerAngleRad</td><td class="ty">Double</td><td class="u">rad</td><td>조향각</td></tr>
+            <tr><td class="p">yawRateRadS</td><td class="ty">Double</td><td class="u">rad/s</td><td>요레이트</td></tr>
+            <tr><td class="p">latAccMs2</td><td class="ty">Double</td><td class="u">m/s²</td><td>횡가속도</td></tr>
+          </tbody>
+        </table></div>
+        <p class="sub">콜백 <code>Listener.onVdc2(vdc2: Vdc2)</code> · KEYS <code>"STEERANGLE", "YAWRATE", "LATACC"</code></p>
+      </div>
+    </div>
+
+    <div class="sig" id="Wbsd">
+      <div class="sig-h"><span class="name">Wbsd</span><span class="tag read">read</span><span class="spring"></span><span class="pgn">WBSD · 0xFE48</span><span class="mod">:vehicle</span></div>
+      <div class="sig-body">
+        <p>바퀴(wheel-based) 기준 속도, 진행방향, 키스위치 상태를 담는다.</p>
+        <div class="tblwrap"><table><thead><tr><th>필드</th><th>타입</th><th>단위</th><th>설명</th></tr></thead>
+          <tbody>
+            <tr><td class="p">speedMs</td><td class="ty">Double</td><td class="u">m/s</td><td>바퀴 기준 속도</td></tr>
+            <tr><td class="p">direction</td><td class="ty">Int</td><td class="u">—</td><td>진행방향</td></tr>
+            <tr><td class="p">keySwitchOn</td><td class="ty">Boolean</td><td class="u">—</td><td>키스위치 on 여부</td></tr>
+          </tbody>
+        </table></div>
+        <p class="sub">콜백 <code>Listener.onWbsd(wbsd: Wbsd)</code> · KEYS <code>"WBSD_SPEED", "WBSD_DIR", "KEYSWITCH"</code></p>
+      </div>
+    </div>
+
+    <div class="sig" id="Gbsd">
+      <div class="sig-h"><span class="name">Gbsd</span><span class="tag read">read</span><span class="spring"></span><span class="pgn">GBSD · 0xFE49</span><span class="mod">:vehicle</span></div>
+      <div class="sig-body">
+        <p>지면(ground-based) 기준 속도와 진행방향을 담는다.</p>
+        <div class="tblwrap"><table><thead><tr><th>필드</th><th>타입</th><th>단위</th><th>설명</th></tr></thead>
+          <tbody>
+            <tr><td class="p">speedMs</td><td class="ty">Double</td><td class="u">m/s</td><td>지면 기준 속도</td></tr>
+            <tr><td class="p">direction</td><td class="ty">Int</td><td class="u">—</td><td>진행방향</td></tr>
+          </tbody>
+        </table></div>
+        <p class="sub">콜백 <code>Listener.onGbsd(gbsd: Gbsd)</code> · KEYS <code>"GBSD_SPEED", "GBSD_DIR"</code></p>
+      </div>
+    </div>
+
+    <div class="sig" id="Mss">
+      <div class="sig-h"><span class="name">Mss</span><span class="tag read">read</span><span class="spring"></span><span class="pgn">MSS · 0xF022</span><span class="mod">:vehicle</span></div>
+      <div class="sig-body">
+        <p>기계가 선택한(machine selected) 속도와 진행방향을 담는다.</p>
+        <div class="tblwrap"><table><thead><tr><th>필드</th><th>타입</th><th>단위</th><th>설명</th></tr></thead>
+          <tbody>
+            <tr><td class="p">speedMs</td><td class="ty">Double</td><td class="u">m/s</td><td>기계 선택 속도</td></tr>
+            <tr><td class="p">direction</td><td class="ty">Int</td><td class="u">—</td><td>진행방향</td></tr>
+          </tbody>
+        </table></div>
+        <p class="sub">콜백 <code>Listener.onMss(mss: Mss)</code> · KEYS <code>"MSS_SPEED", "MSS_DIR"</code></p>
+      </div>
+    </div>
+
+    <div class="sig" id="Vdhr">
+      <div class="sig-h"><span class="name">Vdhr</span><span class="tag read">read</span><span class="spring"></span><span class="pgn">VDHR · 0xFEC1</span><span class="mod">:vehicle</span></div>
+      <div class="sig-body">
+        <p>VDHR(SPN 917) 메시지로, 고정밀 누적거리(주행거리계)를 담는다.</p>
+        <div class="tblwrap"><table><thead><tr><th>필드</th><th>타입</th><th>단위</th><th>설명</th></tr></thead>
+          <tbody><tr><td class="p">odometerKm</td><td class="ty">Double</td><td class="u">km</td><td>누적 주행거리</td></tr></tbody>
+        </table></div>
+        <p class="sub">콜백 <code>Listener.onVdhr(vdhr: Vdhr)</code> · KEYS <code>"ODOMETER"</code></p>
+      </div>
+    </div>
+
+    <div class="sig" id="Vh">
+      <div class="sig-h"><span class="name">Vh</span><span class="tag read">read</span><span class="spring"></span><span class="pgn">VH · 0xFEE7</span><span class="mod">:vehicle</span></div>
+      <div class="sig-body">
+        <p>VH(SPN 246/248) 메시지로, 차량과 PTO의 누적 가동시간을 담는다.</p>
+        <div class="tblwrap"><table><thead><tr><th>필드</th><th>타입</th><th>단위</th><th>설명</th></tr></thead>
+          <tbody>
+            <tr><td class="p">vehicleHours</td><td class="ty">Double</td><td class="u">h</td><td>차량 누적 가동시간</td></tr>
+            <tr><td class="p">ptoHours</td><td class="ty">Double</td><td class="u">h</td><td>PTO 누적 가동시간</td></tr>
+          </tbody>
+        </table></div>
+        <p class="sub">콜백 <code>Listener.onVh(vh: Vh)</code> · KEYS <code>"VEHHOURS", "PTOHOURS"</code></p>
+      </div>
+    </div>
+
+    <div class="sig" id="Vep1">
+      <div class="sig-h"><span class="name">Vep1</span><span class="tag read">read</span><span class="spring"></span><span class="pgn">VEP1 · 0xFEF7</span><span class="mod">:vehicle</span></div>
+      <div class="sig-body">
+        <p>VEP1 풀 메시지(SPN 114/167/168)로, 배터리 전류, 발전기 전압, 배터리 전압을 담는다. <code>batteryVolts</code>는 <a href="#Battery">Battery</a>와 값이 중복된다.</p>
+        <div class="tblwrap"><table><thead><tr><th>필드</th><th>타입</th><th>단위</th><th>설명</th></tr></thead>
+          <tbody>
+            <tr><td class="p">batteryCurrentA</td><td class="ty">Double</td><td class="u">A</td><td>배터리 전류</td></tr>
+            <tr><td class="p">alternatorVolts</td><td class="ty">Double</td><td class="u">V</td><td>발전기 전압</td></tr>
+            <tr><td class="p">batteryVolts</td><td class="ty">Double</td><td class="u">V</td><td>배터리 전압</td></tr>
+          </tbody>
+        </table></div>
+        <p class="sub">콜백 <code>Listener.onVep1(vep1: Vep1)</code> · KEYS <code>"BATTCURR", "ALTVOLT", "BATT"</code></p>
+      </div>
+    </div>
+
+    <div class="sig" id="RearPto">
+      <div class="sig-h"><span class="name">RearPto</span><span class="tag read">read</span><span class="spring"></span><span class="pgn">0xFE43</span><span class="mod">:vehicle</span></div>
+      <div class="sig-body">
+        <p>후방 PTO 풀 메시지로, 회전수, 설정 회전수, 체결 여부를 담는다. <code>rpm</code>은 <a href="#PtoSpeed">PtoSpeed</a>와 값이 중복된다.</p>
+        <div class="tblwrap"><table><thead><tr><th>필드</th><th>타입</th><th>단위</th><th>설명</th></tr></thead>
+          <tbody>
+            <tr><td class="p">rpm</td><td class="ty">Double</td><td class="u">rpm</td><td>PTO 회전수</td></tr>
+            <tr><td class="p">setRpm</td><td class="ty">Double</td><td class="u">rpm</td><td>PTO 설정 회전수</td></tr>
+            <tr><td class="p">engaged</td><td class="ty">Boolean</td><td class="u">—</td><td>PTO 체결 여부</td></tr>
+          </tbody>
+        </table></div>
+        <p class="sub">콜백 <code>Listener.onRearPto(rearPto: RearPto)</code> · KEYS <code>"PTO", "PTO_SETSPEED", "PTO_ENGAGED"</code></p>
+      </div>
+    </div>
+
+    <div class="sig" id="FrontPto">
+      <div class="sig-h"><span class="name">FrontPto</span><span class="tag read">read</span><span class="spring"></span><span class="pgn">0xFE44</span><span class="mod">:vehicle</span></div>
+      <div class="sig-body">
+        <p>전방 PTO 메시지로, 회전수와 체결 여부를 담는다.</p>
+        <div class="tblwrap"><table><thead><tr><th>필드</th><th>타입</th><th>단위</th><th>설명</th></tr></thead>
+          <tbody>
+            <tr><td class="p">rpm</td><td class="ty">Double</td><td class="u">rpm</td><td>전방 PTO 회전수</td></tr>
+            <tr><td class="p">engaged</td><td class="ty">Boolean</td><td class="u">—</td><td>전방 PTO 체결 여부</td></tr>
+          </tbody>
+        </table></div>
+        <p class="sub">콜백 <code>Listener.onFrontPto(frontPto: FrontPto)</code> · KEYS <code>"FPTO_SPEED", "FPTO_ENGAGED"</code></p>
+      </div>
+    </div>
+
+    <div class="sig" id="Vds">
+      <div class="sig-h"><span class="name">Vds</span><span class="tag read">read</span><span class="spring"></span><span class="pgn">VDS · 0xFEE8</span><span class="mod">:vehicle</span></div>
+      <div class="sig-body">
+        <p>GPS 고도, 방위, 항법 속도, 피치를 담는다.</p>
+        <div class="tblwrap"><table><thead><tr><th>필드</th><th>타입</th><th>단위</th><th>설명</th></tr></thead>
+          <tbody>
+            <tr><td class="p">altitudeM</td><td class="ty">Double</td><td class="u">m</td><td>고도</td></tr>
+            <tr><td class="p">headingDeg</td><td class="ty">Double</td><td class="u">deg</td><td>방위</td></tr>
+            <tr><td class="p">speedKmh</td><td class="ty">Double</td><td class="u">km/h</td><td>항법 속도</td></tr>
+            <tr><td class="p">pitchDeg</td><td class="ty">Double</td><td class="u">deg</td><td>피치각</td></tr>
+          </tbody>
+        </table></div>
+        <p class="sub">콜백 <code>Listener.onVds(vds: Vds)</code> · KEYS <code>"GPS_ALT", "GPS_HEADING", "NAV_SPEED", "NAV_PITCH"</code></p>
+      </div>
+    </div>
+
+    <div class="sig" id="GnssCourseSpeed">
+      <div class="sig-h"><span class="name">GnssCourseSpeed</span><span class="tag read">read</span><span class="spring"></span><span class="pgn">COG &amp; SOG Rapid Update · PGN 129026</span><span class="mod">:vehicle</span></div>
+      <div class="sig-body">
+        <p>GNSS 진행방위(COG)와 대지속도(SOG)를 담는다. NMEA2000 PGN이며, J1939 SPN 체계가 아니다.</p>
+        <div class="tblwrap"><table><thead><tr><th>필드</th><th>타입</th><th>단위</th><th>설명</th></tr></thead>
+          <tbody>
+            <tr><td class="p">courseRad</td><td class="ty">Double</td><td class="u">rad</td><td>진행방위(course over ground)</td></tr>
+            <tr><td class="p">speedMs</td><td class="ty">Double</td><td class="u">m/s</td><td>대지속도(speed over ground)</td></tr>
+          </tbody>
+        </table></div>
+        <p class="sub">콜백 <code>Listener.onGnssCourseSpeed(courseSpeed: GnssCourseSpeed)</code> · KEYS <code>"GPS_COG", "GPS_SOG"</code></p>
+      </div>
+    </div>
+
+    <div class="sig" id="GnssQuality">
+      <div class="sig-h"><span class="name">GnssQuality</span><span class="tag read">read</span><span class="spring"></span><span class="pgn">GNSS Position Data · PGN 129029</span><span class="mod">:vehicle</span></div>
+      <div class="sig-body">
+        <p>측위 품질을 나타내며, fix 방식, 위성 수, HDOP, PDOP, 지오이드 분리값을 담는다. NMEA2000 PGN이다.</p>
+        <div class="tblwrap"><table><thead><tr><th>필드</th><th>타입</th><th>단위</th><th>설명</th></tr></thead>
+          <tbody>
+            <tr><td class="p">method</td><td class="ty">Int</td><td class="u">—</td><td>측위(fix) 방식</td></tr>
+            <tr><td class="p">numSatellites</td><td class="ty">Int</td><td class="u">—</td><td>사용 위성 수</td></tr>
+            <tr><td class="p">hdop</td><td class="ty">Double</td><td class="u">—</td><td>수평 정밀도 저하율</td></tr>
+            <tr><td class="p">pdop</td><td class="ty">Double</td><td class="u">—</td><td>위치 정밀도 저하율</td></tr>
+            <tr><td class="p">geoidalSepM</td><td class="ty">Double</td><td class="u">m</td><td>지오이드 분리값</td></tr>
+          </tbody>
+        </table></div>
+        <p class="sub">콜백 <code>Listener.onGnssQuality(quality: GnssQuality)</code> · KEYS <code>"GPS_METHOD", "GPS_NUMSAT", "GPS_HDOP", "GPS_PDOP", "GPS_GEOSEP"</code></p>
+      </div>
+    </div>
+
+    <div class="sig" id="Amb">
+      <div class="sig-h"><span class="name">Amb</span><span class="tag read">read</span><span class="spring"></span><span class="pgn">AMB · 0xFEF5</span><span class="mod">:vehicle</span></div>
+      <div class="sig-body">
+        <p>AMB(SPN 108/171/172) 메시지로, 기압, 외기온, 흡기온을 담는다.</p>
+        <div class="tblwrap"><table><thead><tr><th>필드</th><th>타입</th><th>단위</th><th>설명</th></tr></thead>
+          <tbody>
+            <tr><td class="p">barometricKPa</td><td class="ty">Double</td><td class="u">kPa</td><td>기압</td></tr>
+            <tr><td class="p">ambientC</td><td class="ty">Double</td><td class="u">°C</td><td>외기온</td></tr>
+            <tr><td class="p">airInletC</td><td class="ty">Double</td><td class="u">°C</td><td>흡기온</td></tr>
+          </tbody>
+        </table></div>
+        <p class="sub">콜백 <code>Listener.onAmb(amb: Amb)</code> · KEYS <code>"BAROP", "AMBTEMP", "AIRINTEMP"</code></p>
+      </div>
+    </div>
+
+    <div class="sig" id="Td">
+      <div class="sig-h"><span class="name">Td</span><span class="tag read">read</span><span class="spring"></span><span class="pgn">TD · 0xFEE6</span><span class="mod">:vehicle</span></div>
+      <div class="sig-body">
+        <p>TD(SPN 959..964) 메시지로, 날짜와 시각을 담는다. 데몬이 연도 offset(1985)을 이미 적용한 물리값을 주므로 그대로 <code>toInt()</code> 한다.</p>
+        <div class="tblwrap"><table><thead><tr><th>필드</th><th>타입</th><th>단위</th><th>설명</th></tr></thead>
+          <tbody>
+            <tr><td class="p">seconds</td><td class="ty">Double</td><td class="u">s</td><td>초</td></tr>
+            <tr><td class="p">minutes</td><td class="ty">Int</td><td class="u">min</td><td>분</td></tr>
+            <tr><td class="p">hours</td><td class="ty">Int</td><td class="u">h</td><td>시</td></tr>
+            <tr><td class="p">month</td><td class="ty">Int</td><td class="u">—</td><td>월</td></tr>
+            <tr><td class="p">day</td><td class="ty">Double</td><td class="u">—</td><td>일</td></tr>
+            <tr><td class="p">year</td><td class="ty">Int</td><td class="u">—</td><td>연도(1985 offset 적용된 물리값)</td></tr>
+          </tbody>
+        </table></div>
+        <p class="sub">콜백 <code>Listener.onTd(td: Td)</code> · KEYS <code>"TIME_SEC", "TIME_MIN", "TIME_HOUR", "DATE_MONTH", "DATE_DAY", "DATE_YEAR"</code></p>
+      </div>
+    </div>
+  </section>
+
+  <div class="pagenav">
+    <a class="prev" href="engine.html"><div class="lb">이전</div><div class="tt">← :engine</div></a>
+    <a class="next" href="hitch.html"><div class="lb">다음</div><div class="tt">:hitch →</div></a>
+  </div>
+  <div class="foot">AgVehicle SDK · farm.agmo.vehicle · 이 문서는 SDK 소스에서 추출한 공개 API 레퍼런스입니다.</div>
+</main>
+</div>
+</body>
+</html>

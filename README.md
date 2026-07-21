@@ -83,6 +83,12 @@ dependencies {
 도메인 객체를 리스너와 함께 만들고 `lifecycle.addObserver` 한 줄이면 끝 —
 ON_START에 자동 구독, ON_STOP에 자동 해제된다.
 
+`Engine`/`Vehicle`/`Hitch`는 생성자 3번째 인자로 `intervalMs`(기본 0)를 받는다.
+Cuttlefish 같은 소프트웨어 렌더 환경에서 UI가 CAN 원시 신호 레이트로 매번
+재구성/리드로우하면 CPU가 급증하는데, 사람이 읽는 계기판은 5Hz(200ms)면 충분하다.
+`intervalMs`로 앱 콜백 빈도 상한을 걸어 리드로우를 줄인다(0이면 오는 값 전부 전달 —
+하위호환).
+
 ```kotlin
 // IMU 자세 (자격 불필요)
 val imu = Imu(this, object : Imu.Listener {
@@ -92,17 +98,17 @@ val imu = Imu(this, object : Imu.Listener {
 })
 lifecycle.addObserver(imu)     // ← 생명주기 한 줄
 
-// 엔진 (자격 불필요)
+// 엔진 (자격 불필요) — intervalMs=200 → 최대 5Hz로 콜백(리드로우 상한)
 val engine = Engine(this, object : Engine.Listener {
     override fun onEec1(e: Eec1) = runOnUiThread { render(e.rpm, e.loadPercent) }
     override fun onTemperature(t: EngineTemperature) = runOnUiThread { render(t.coolantC) }
-})
+}, intervalMs = 200)
 lifecycle.addObserver(engine)
 
 // 히치 — 위치 읽기(리스너) + 제어(세션)
 val hitch = Hitch(this, object : Hitch.Listener {
     override fun onPosition(p: HitchPosition) = runOnUiThread { render(p.percent) }
-})
+}, intervalMs = 200)
 lifecycle.addObserver(hitch)
 
 val ctrl = Hitch.control(this) ?: return     // null = 자격 없음 / 상위 보유 중 / 미연결
@@ -132,7 +138,7 @@ combine(ImuFlow.angles(ctx), EngineFlow.eec1(ctx)) { a, e -> Dashboard(a, e) }
 val v = AgVehicle.shared(this)
 v.addConnectionListener(object : AgVehicle.ConnectionListener {
     override fun onConnected() {
-        val sub = v.subscribe("mypkg:MY_SIGNAL") { value ->
+        val sub = v.subscribe("mypkg:MY_SIGNAL", intervalMs = 200) { value ->
             runOnUiThread { textView.text = value.text }   // "52.4 %"
         }
         v.requestCatalog { metas -> /* 전체 신호 목록 */ }
@@ -147,6 +153,10 @@ ctrl?.send(125)                                  // raw
 - 콜백은 binder 스레드 — UI 갱신은 앱이 `runOnUiThread`로
 - 재연결 시 구독은 자동 복원, **제어 세션은 안전을 위해 재획득**이 필요
 - 제어 토큰은 세션 핸들 안에 봉인 — 앱 코드에 노출되지 않는다
+- `subscribe`/`subscribeMessage`의 `intervalMs`(기본 0)는 leading-edge 스로틀 —
+  0이면 오는 값을 전부 전달(하위호환), 0보다 크면 최대 그 간격마다 최신값 1회만
+  전달한다(타이머 없이 값이 들어온 시점에 판정). 게이트는 구독 인스턴스별 독립이라
+  신호마다 다른 주기를 걸 수 있다
 
 ## 자격 선언 (제어 쓸 때)
 

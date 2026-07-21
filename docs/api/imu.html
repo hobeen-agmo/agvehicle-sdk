@@ -1,0 +1,464 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>:imu · :gpio — AgVehicle SDK</title>
+<style>
+/* AgVehicle SDK docs — shared stylesheet. Neutral dark/light, no brand hue. */
+:root{
+  --bg:#f7f7f8; --panel:#ffffff; --sidebar:#f1f1f3; --ink:#18181b; --mut:#52525b;
+  --dim:#8a8a93; --line:#e5e5e8; --line2:#d4d4d8; --code-bg:#f4f4f5; --code-ink:#27272a;
+  --acc:#3a5bbf; --acc-soft:#eef1fb; --acc-line:#cdd7f2;
+  --warn:#9a7420; --warn-soft:#f7f1e2; --danger:#b4544e;
+  --str:#9a742b; --sig-bg:#fbfbfc;
+  --mono:ui-monospace,"SF Mono",SFMono-Regular,Menlo,"JetBrains Mono",Consolas,monospace;
+  --sans:system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",sans-serif;
+}
+@media (prefers-color-scheme: dark){
+  :root{
+    --bg:#0d0d10; --panel:#151519; --sidebar:#101013; --ink:#e9e9ec; --mut:#a1a1aa;
+    --dim:#71717a; --line:#26262b; --line2:#35353c; --code-bg:#121216; --code-ink:#d4d4d8;
+    --acc:#93a8f0; --acc-soft:#161e33; --acc-line:#2c3a63;
+    --warn:#d3b06a; --warn-soft:#221c0e; --danger:#e0736c;
+    --str:#cbb079; --sig-bg:#111115;
+  }
+}
+:root[data-theme="light"]{
+  --bg:#f7f7f8; --panel:#ffffff; --sidebar:#f1f1f3; --ink:#18181b; --mut:#52525b;
+  --dim:#8a8a93; --line:#e5e5e8; --line2:#d4d4d8; --code-bg:#f4f4f5; --code-ink:#27272a;
+  --acc:#3a5bbf; --acc-soft:#eef1fb; --acc-line:#cdd7f2;
+  --warn:#9a7420; --warn-soft:#f7f1e2; --danger:#b4544e; --str:#9a742b; --sig-bg:#fbfbfc;
+}
+:root[data-theme="dark"]{
+  --bg:#0d0d10; --panel:#151519; --sidebar:#101013; --ink:#e9e9ec; --mut:#a1a1aa;
+  --dim:#71717a; --line:#26262b; --line2:#35353c; --code-bg:#121216; --code-ink:#d4d4d8;
+  --acc:#93a8f0; --acc-soft:#161e33; --acc-line:#2c3a63;
+  --warn:#d3b06a; --warn-soft:#221c0e; --danger:#e0736c; --str:#cbb079; --sig-bg:#111115;
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--sans);
+  font-size:15px;line-height:1.65;-webkit-font-smoothing:antialiased}
+a{color:var(--acc);text-decoration:none}
+a:hover{text-decoration:underline}
+code,kbd{font-family:var(--mono);font-size:.88em}
+.mono{font-family:var(--mono)}
+
+/* layout */
+.shell{display:grid;grid-template-columns:288px minmax(0,1fr);max-width:1360px;margin:0 auto;min-height:100vh}
+.side{position:sticky;top:0;align-self:start;height:100vh;overflow-y:auto;background:var(--sidebar);
+  border-right:1px solid var(--line);padding:26px 20px 60px}
+.main{padding:0 clamp(20px,4vw,64px) 120px;min-width:0}
+@media (max-width:860px){
+  .shell{grid-template-columns:1fr}
+  .side{position:static;height:auto;border-right:0;border-bottom:1px solid var(--line)}
+}
+
+/* sidebar */
+.brand{display:flex;align-items:center;gap:10px;margin-bottom:6px}
+.brand a{display:flex;align-items:center;gap:10px;color:inherit}
+.brand a:hover{text-decoration:none}
+.brand .logo{width:30px;height:30px;border-radius:8px;background:var(--ink);color:var(--bg);
+  display:grid;place-items:center;font-weight:800;font-size:14px;flex:none;font-family:var(--mono)}
+.brand b{font-size:16px;letter-spacing:-.01em}
+.ver{color:var(--dim);font-family:var(--mono);font-size:11px;margin:2px 0 20px 40px}
+.nav{display:flex;flex-direction:column;gap:1px}
+.nav .grp{color:var(--dim);font-size:10.5px;font-weight:700;letter-spacing:.09em;
+  text-transform:uppercase;margin:16px 0 5px;padding-left:9px}
+.nav a{color:var(--mut);padding:5px 9px;border-radius:7px;font-size:13.5px;
+  border-left:2px solid transparent;line-height:1.35}
+.nav a:hover{background:var(--panel);color:var(--ink);text-decoration:none}
+.nav a.active{color:var(--acc);background:var(--acc-soft);border-left-color:var(--acc);font-weight:600}
+.nav a.sub{padding-left:20px;font-size:12.5px;color:var(--dim)}
+.nav a .mono{font-size:12px}
+
+/* page header */
+.crumb{font-family:var(--mono);font-size:12px;color:var(--dim);margin:38px 0 4px}
+.crumb a{color:var(--dim)}
+h1{font-size:34px;line-height:1.12;letter-spacing:-.025em;margin:0 0 12px;font-weight:800;text-wrap:balance}
+.lead{font-size:17px;color:var(--mut);max-width:66ch;margin:8px 0 0}
+.hero{padding:40px 0 30px;border-bottom:1px solid var(--line);margin-bottom:8px}
+.hero h1{font-size:38px}
+.pathline{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-top:22px;font-family:var(--mono);font-size:12.5px;color:var(--mut)}
+.pathline .node{background:var(--panel);border:1px solid var(--line2);border-radius:7px;padding:5px 11px;white-space:nowrap}
+.pathline .node.hl{border-color:var(--acc-line);background:var(--acc-soft);color:var(--acc);font-weight:600}
+.pathline .arw{color:var(--dim)}
+
+/* sections */
+section{padding-top:44px}
+section>h2,h2{font-size:25px;letter-spacing:-.02em;margin:0 0 6px;font-weight:800;scroll-margin-top:20px}
+.kicker{color:var(--acc);font-family:var(--mono);font-size:12px;font-weight:700;letter-spacing:.04em;margin-bottom:8px}
+h3{font-size:18px;margin:32px 0 8px;letter-spacing:-.01em;scroll-margin-top:20px}
+h4{font-size:13px;margin:22px 0 6px;color:var(--mut);text-transform:uppercase;letter-spacing:.05em}
+p{margin:10px 0}
+.sub{color:var(--mut)}
+
+/* quickstart steps */
+.steps{counter-reset:step;display:flex;flex-direction:column;gap:20px;margin:20px 0}
+.step{position:relative;padding-left:46px}
+.step::before{counter-increment:step;content:counter(step);position:absolute;left:0;top:-2px;
+  width:30px;height:30px;border-radius:8px;background:var(--ink);color:var(--bg);
+  display:grid;place-items:center;font-weight:800;font-size:14px;font-family:var(--mono)}
+.step h3{margin:2px 0 6px}
+.step pre{margin-top:10px}
+
+/* code */
+pre{background:var(--code-bg);border:1px solid var(--line);border-radius:12px;padding:16px 18px;
+  overflow-x:auto;margin:14px 0;line-height:1.55}
+pre code{color:var(--code-ink);font-size:13px}
+.tok-k{color:var(--acc);font-weight:600}
+.tok-t{color:var(--ink);font-weight:600}
+.tok-c{color:var(--dim);font-style:italic}
+.tok-s{color:var(--str)}
+:not(pre)>code{background:var(--code-bg);border:1px solid var(--line);border-radius:5px;
+  padding:.5px 5px;color:var(--code-ink)}
+
+/* signature block */
+.sig{background:var(--sig-bg);border:1px solid var(--line2);border-radius:12px;margin:20px 0;overflow:hidden}
+.sig>.sig-h{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;padding:13px 18px;
+  border-bottom:1px solid var(--line);background:var(--panel)}
+.sig-h .name{font-family:var(--mono);font-size:15px;font-weight:700;color:var(--ink)}
+.sig-h .tag{font-family:var(--mono);font-size:10.5px;font-weight:700;padding:2px 7px;border-radius:999px;letter-spacing:.03em;border:1px solid var(--line2)}
+.tag.read{color:var(--mut);background:var(--code-bg)}
+.tag.ctrl{color:var(--acc);background:var(--acc-soft);border-color:var(--acc-line)}
+.tag.oem{color:var(--mut);background:transparent;border-style:dashed}
+.tag.enum{color:var(--warn);background:var(--warn-soft);border-color:transparent}
+.sig-h .spring{flex:1}
+.sig-h .mod{font-family:var(--mono);font-size:11.5px;color:var(--dim)}
+.sig-h .pgn{font-family:var(--mono);font-size:11px;color:var(--dim);background:var(--code-bg);border:1px solid var(--line);border-radius:5px;padding:1px 6px}
+.sig-body{padding:6px 18px 16px}
+.sig-body pre{background:var(--code-bg);margin:12px 0}
+.sig-body>p:first-child{margin-top:12px}
+
+/* tables */
+table{border-collapse:collapse;width:100%;margin:12px 0;font-size:13.5px}
+th,td{text-align:left;padding:8px 12px;border-bottom:1px solid var(--line);vertical-align:top}
+th{color:var(--dim);font-size:11px;text-transform:uppercase;letter-spacing:.05em;font-weight:700}
+td.p{font-family:var(--mono);color:var(--code-ink);white-space:nowrap;font-size:12.5px}
+td .ty,.ty{color:var(--mut);font-family:var(--mono);font-size:12px}
+td.u{font-family:var(--mono);color:var(--dim);font-size:12px;white-space:nowrap}
+.tblwrap{overflow-x:auto;border:1px solid var(--line);border-radius:12px;margin:14px 0}
+.tblwrap table{margin:0}
+.tblwrap th,.tblwrap td{padding:9px 14px}
+.tblwrap tr:last-child td{border-bottom:0}
+
+/* callouts */
+.note{border:1px solid var(--line2);border-left:3px solid var(--mut);background:var(--code-bg);
+  border-radius:8px;padding:11px 15px;margin:16px 0;font-size:13.5px}
+.note.warn{border-left-color:var(--warn);background:var(--warn-soft)}
+.note.info{border-left-color:var(--acc);background:var(--acc-soft)}
+.note b{color:var(--ink)}
+.note .lbl{font-weight:700;font-size:11px;letter-spacing:.05em;text-transform:uppercase;margin-right:6px;color:var(--mut)}
+.note.info .lbl{color:var(--acc)}
+
+/* module grid (index) */
+.mods{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:14px;margin:18px 0}
+.mod{display:block;background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:15px 16px;color:inherit;transition:border-color .12s}
+.mod:hover{border-color:var(--acc-line);text-decoration:none}
+.mod .co{font-family:var(--mono);font-size:13px;font-weight:700;color:var(--ink)}
+.mod .std{font-size:10px;font-weight:700;letter-spacing:.05em;padding:1px 6px;border-radius:999px;margin-left:6px;
+  color:var(--mut);background:var(--code-bg);border:1px solid var(--line2)}
+.mod .oemb{color:var(--acc);background:var(--acc-soft);border-color:var(--acc-line)}
+.mod .d{color:var(--mut);font-size:12.5px;margin-top:6px;line-height:1.5}
+.mod .n{font-size:11px;color:var(--dim);margin-top:8px;font-family:var(--mono)}
+
+/* tier ladder */
+.ladder{display:flex;flex-direction:column;gap:8px;margin:16px 0}
+.rung{display:flex;align-items:center;gap:14px;border:1px solid var(--line2);border-radius:10px;
+  padding:12px 16px;background:var(--panel)}
+.rung .rk{font-family:var(--mono);font-weight:800;font-size:15px;width:66px;flex:none}
+.rung .nm{font-weight:700}
+.rung .ds{color:var(--mut);font-size:13px;margin-left:auto;text-align:right}
+.rung.safety{border-color:color-mix(in srgb,var(--danger) 45%,var(--line2))}.rung.safety .rk{color:var(--danger)}
+.rung.app{border-color:var(--acc-line)}.rung.app .rk{color:var(--acc)}
+.rung.system .rk{color:var(--dim)}
+
+/* page nav (prev/next) */
+.pagenav{display:flex;justify-content:space-between;gap:14px;margin-top:56px;padding-top:22px;border-top:1px solid var(--line)}
+.pagenav a{flex:1;border:1px solid var(--line);border-radius:10px;padding:12px 16px;color:inherit}
+.pagenav a:hover{border-color:var(--acc-line);text-decoration:none}
+.pagenav .lb{font-size:11px;color:var(--dim);text-transform:uppercase;letter-spacing:.05em}
+.pagenav .tt{font-weight:700;color:var(--acc);margin-top:2px}
+.pagenav .next{text-align:right}
+
+.pill{display:inline-block;font-family:var(--mono);font-size:11px;color:var(--acc);
+  background:var(--acc-soft);border:1px solid var(--acc-line);border-radius:999px;padding:1px 8px}
+.foot{margin-top:40px;padding-top:20px;border-top:1px solid var(--line);color:var(--dim);font-size:12.5px}
+:target{scroll-margin-top:16px}
+::selection{background:var(--acc-soft)}
+
+</style>
+</head>
+<body>
+<div class="shell">
+<aside class="side">
+  <div class="brand"><a href="index.html"><span class="logo">Ag</span><b>AgVehicle SDK</b></a></div>
+  <div class="ver">farm.agmo.vehicle · v0.1.x</div>
+  <nav class="nav">
+    <div class="grp">시작</div>
+    <a href="index.html">개요 · Quickstart</a>
+    <a href="index.html#install">설치 (Gradle)</a>
+    <a href="index.html#modules">모듈 구성</a>
+    <div class="grp">핵심 (core)</div>
+    <a href="core.html">AgVehicle · 연결</a>
+    <a class="sub" href="core.html#reading">신호 읽기 · subscribe</a>
+    <a class="sub" href="core.html#throttle">갱신 스로틀 · intervalMs</a>
+    <a class="sub" href="core.html#control">제어 세션 · acquire</a>
+    <a class="sub" href="core.html#catalog">카탈로그 · 동적 정의</a>
+    <a class="sub" href="core.html#types">코어 타입</a>
+    <div class="grp">도메인 모델 (표준)</div>
+    <a href="engine.html"><span class="mono">:engine</span></a>
+    <a href="vehicle.html"><span class="mono">:vehicle</span></a>
+    <a href="hitch.html"><span class="mono">:hitch</span></a>
+    <a class="active" href="imu.html"><span class="mono">:imu</span> · <span class="mono">:gpio</span></a>
+    <a href="flow.html"><span class="mono">:flow</span></a>
+    <div class="grp">OEM (제조사 고유)</div>
+    <a href="oem-tractor.html"><span class="mono">:oem-tractor</span></a>
+    <a href="oem-steer.html"><span class="mono">:oem-steer</span></a>
+    <a href="oem-spreader.html"><span class="mono">:oem-spreader</span></a>
+    <a href="oem-imu.html"><span class="mono">:oem-imu</span></a>
+    <a href="oem-genericio.html"><span class="mono">:oem-genericio</span></a>
+    <div class="grp">제어 정책</div>
+    <a href="policy.html">자격 · 실행레벨(Tier)</a>
+  </nav>
+</aside>
+
+<main class="main">
+  <div class="crumb"><a href="index.html">AgVehicle SDK</a> / <a href="index.html#modules">도메인 모델</a> / :imu · :gpio</div>
+  <h1>IMU · GPIO (:imu · :gpio)</h1>
+  <p class="lead">이 모듈은 차체 자세(각도, 각속도, 가속도)와 범용 하드웨어 GPIO 입출력을 다룬다. 둘 다 읽기에는 자격이 필요하지 않으며, 표준 계열(비-oem)에 속한다. <code>:gpio</code>는 CAN이 아니라 데몬의 sysfs/IIO 백엔드를 쓰는 플랫폼 하드웨어 능력이라 <code>:imu</code>와 별도 모듈로 나뉜다.</p>
+
+  <section id="imu">
+    <div class="kicker">읽기 · 자세</div>
+    <h2>:imu</h2>
+    <p>"CAN 메시지(ID) 하나 = 클래스 하나" 원칙대로, IMU는 각도, 각속도, 가속도의 3개 메시지(PGN)로 온다. 필요한 콜백만 override하면 되고, 스트림별 구독과 조합이 필요하면 <a href="flow.html">:flow</a> 모듈을 쓴다.</p>
+
+    <div class="sig">
+      <div class="sig-h">
+        <span class="name">Imu(context: Context, intervalMs: Long = 0)</span>
+        <span class="tag read">read</span>
+        <span class="spring"></span>
+        <span class="mod">farm.agmo.vehicle.imu</span>
+      </div>
+      <div class="sig-body">
+        <p>읽기 전용이므로 별도 자격 선언이 필요하지 않다. 콜백은 binder 스레드에서 호출되므로 UI 갱신은 앱이 <code>runOnUiThread</code>로 감싼다.</p>
+        <p>등록 방식은 두 가지이며, 두 방식은 기능적으로 동등하다.</p>
+        <div class="tblwrap"><table>
+          <tr><th>방식</th><th>생성 · 등록</th></tr>
+          <tr><td class="p">람다</td><td><code>Imu(context, intervalMs)</code> + <code>imu.onAngles { }</code> — 필요한 신호만, 체이닝 가능</td></tr>
+          <tr><td class="p">리스너</td><td><code>Imu(context, listener: Listener, intervalMs)</code> — 여러 신호를 한 객체에서 override</td></tr>
+        </table></div>
+        <p>각 콜백마다 대응하는 람다 메서드가 있다. <code>onAngles { }</code>, <code>onRates { }</code>, <code>onAccel { }</code>가 있으며, 아래 <code>Listener</code> 표의 <code>on…</code> 이름과 1:1로 대응한다. 람다 방식은 <b>등록한 신호만</b> 구독한다.</p>
+        <p><code>intervalMs</code>는 앱 콜백의 최소 간격(ms)이다. <code>0</code>이면 신호가 올 때마다 전부 전달하고, <code>&gt;0</code>이면 최대 그 간격마다 최신값을 1회만 전달한다.</p>
+        <h4>Imu.Listener</h4>
+        <div class="tblwrap">
+          <table>
+            <thead><tr><th>콜백</th><th>인자</th><th>설명</th></tr></thead>
+            <tbody>
+              <tr><td class="p">onAngles</td><td class="ty">ImuAngles</td><td>피치·롤 각도 갱신</td></tr>
+              <tr><td class="p">onRates</td><td class="ty">ImuRates</td><td>축별 각속도 갱신</td></tr>
+              <tr><td class="p">onAccel</td><td class="ty">ImuAccel</td><td>축별 가속도 갱신</td></tr>
+            </tbody>
+          </table>
+        </div>
+<pre><code><span class="tok-k">val</span> imu = Imu(<span class="tok-k">this</span>, intervalMs = 200)
+imu.onAngles { a -> runOnUiThread { render(a.pitchDeg, a.rollDeg) } }
+   .onRates  { r -> runOnUiThread { render(r.xDegS, r.yDegS, r.zDegS) } }
+lifecycle.addObserver(imu)</code></pre>
+        <p class="sub"><b>여러 신호</b>를 한 객체에서 다루려면 아래와 같이 <b>리스너</b> 방식으로 등록할 수도 있다. 두 방식은 기능적으로 동등하다.</p>
+<pre><code><span class="tok-k">val</span> imu = Imu(<span class="tok-k">this</span>, <span class="tok-k">object</span> : Imu.Listener {
+  <span class="tok-k">override fun</span> onAngles(a: <span class="tok-t">ImuAngles</span>) = runOnUiThread { render(a.pitchDeg, a.rollDeg) }
+  <span class="tok-k">override fun</span> onRates(r: <span class="tok-t">ImuRates</span>)   = runOnUiThread { render(r.xDegS, r.yDegS, r.zDegS) }
+}, intervalMs = 200)
+lifecycle.addObserver(imu)     <span class="tok-c">// ON_START 자동 구독 / ON_STOP 자동 해제</span></code></pre>
+      </div>
+    </div>
+
+    <h3>ImuAngles</h3>
+    <div class="sig">
+      <div class="sig-h">
+        <span class="name">data class ImuAngles(val pitchDeg: Double, val rollDeg: Double)</span>
+        <span class="tag read">read</span>
+        <span class="spring"></span>
+        <span class="pgn">PGN 0xF029</span>
+        <span class="mod">farm.agmo.vehicle.imu</span>
+      </div>
+      <div class="sig-body">
+        <div class="tblwrap">
+          <table>
+            <thead><tr><th>필드</th><th>타입</th><th>단위</th><th>설명</th></tr></thead>
+            <tbody>
+              <tr><td class="p">pitchDeg</td><td class="ty">Double</td><td class="u">deg</td><td>피치 각도</td></tr>
+              <tr><td class="p">rollDeg</td><td class="ty">Double</td><td class="u">deg</td><td>롤 각도</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <h3>ImuRates</h3>
+    <div class="sig">
+      <div class="sig-h">
+        <span class="name">data class ImuRates(val xDegS: Double, val yDegS: Double, val zDegS: Double)</span>
+        <span class="tag read">read</span>
+        <span class="spring"></span>
+        <span class="pgn">PGN 0xF02A</span>
+        <span class="mod">farm.agmo.vehicle.imu</span>
+      </div>
+      <div class="sig-body">
+        <div class="tblwrap">
+          <table>
+            <thead><tr><th>필드</th><th>타입</th><th>단위</th><th>설명</th></tr></thead>
+            <tbody>
+              <tr><td class="p">xDegS</td><td class="ty">Double</td><td class="u">deg/s</td><td>X축 각속도</td></tr>
+              <tr><td class="p">yDegS</td><td class="ty">Double</td><td class="u">deg/s</td><td>Y축 각속도</td></tr>
+              <tr><td class="p">zDegS</td><td class="ty">Double</td><td class="u">deg/s</td><td>Z축 각속도</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <h3>ImuAccel</h3>
+    <div class="sig">
+      <div class="sig-h">
+        <span class="name">data class ImuAccel(val xMs2: Double, val yMs2: Double, val zMs2: Double)</span>
+        <span class="tag read">read</span>
+        <span class="spring"></span>
+        <span class="pgn">PGN 0xF02D</span>
+        <span class="mod">farm.agmo.vehicle.imu</span>
+      </div>
+      <div class="sig-body">
+        <div class="tblwrap">
+          <table>
+            <thead><tr><th>필드</th><th>타입</th><th>단위</th><th>설명</th></tr></thead>
+            <tbody>
+              <tr><td class="p">xMs2</td><td class="ty">Double</td><td class="u">m/s²</td><td>X축 가속도</td></tr>
+              <tr><td class="p">yMs2</td><td class="ty">Double</td><td class="u">m/s²</td><td>Y축 가속도</td></tr>
+              <tr><td class="p">zMs2</td><td class="ty">Double</td><td class="u">m/s²</td><td>Z축 가속도</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="gpio">
+    <div class="kicker">읽기 · 쓰기 · 범용 하드웨어</div>
+    <h2>:gpio</h2>
+    <p><code>:gpio</code>는 범용 GPIO 입출력을 다룬다. 출처는 SeamOS GPIO_Prototyping 플러그인 인터페이스 이관이며, 특정 제조사 CAN 고유가 아니라 <b>범용 하드웨어 추상화</b>라 표준 계열(비-oem)에 둔다. 데몬 쪽 백엔드는 CAN이 아니라 <b>sysfs/IIO</b>다. 입력은 <code>Gpio</code>(Signal 상속)로 구독하고, 디지털 출력은 <code>Gpio.digitalOut()</code> 세션으로 제어한다.</p>
+
+    <div class="sig">
+      <div class="sig-h">
+        <span class="name">object GpioSignals</span>
+        <span class="spring"></span>
+        <span class="mod">farm.agmo.vehicle.gpio</span>
+      </div>
+      <div class="sig-body">
+        <p><code>GpioSignals</code>는 채널별 신호 키(데몬 카탈로그 키 = 신호명 그대로)와 채널 수 상수를 정의한다. 실제 핀맵(어느 출력이 무슨 릴레이인지)은 데몬 <code>gpio_config</code>에서 결정된다.</p>
+        <div class="tblwrap">
+          <table>
+            <thead><tr><th>필드</th><th>타입</th><th>단위</th><th>설명</th></tr></thead>
+            <tbody>
+              <tr><td class="p">ANALOG_IN_COUNT</td><td class="ty">Int</td><td class="u">채널</td><td>4 — 아날로그 입력(ADC) 채널 수</td></tr>
+              <tr><td class="p">DIGITAL_IN_COUNT</td><td class="ty">Int</td><td class="u">채널</td><td>3 — 디지털 입력(DIO) 채널 수</td></tr>
+              <tr><td class="p">DIGITAL_OUT_COUNT</td><td class="ty">Int</td><td class="u">채널</td><td>7 — 디지털 출력(DIO) 채널 수</td></tr>
+              <tr><td class="p">analogIn(channel: Int)</td><td class="ty">String</td><td class="u">–</td><td>"Analog_IN{channel}" — 아날로그 입력 키 (1~4)</td></tr>
+              <tr><td class="p">digitalIn(channel: Int)</td><td class="ty">String</td><td class="u">–</td><td>"Digital_IN{channel}" — 디지털 입력 키 (1~3)</td></tr>
+              <tr><td class="p">digitalOut(channel: Int)</td><td class="ty">String</td><td class="u">–</td><td>"Digital_OUT{channel}" — 디지털 출력 키 (1~7)</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <h3>Gpio — 입력 읽기</h3>
+    <div class="sig">
+      <div class="sig-h">
+        <span class="name">Gpio(context: Context, intervalMs: Long = 0)</span>
+        <span class="tag read">read</span>
+        <span class="spring"></span>
+        <span class="mod">farm.agmo.vehicle.gpio</span>
+      </div>
+      <div class="sig-body">
+        <p>읽기 전용이므로 별도 자격 선언이 필요하지 않다. <code>channel</code>은 1부터 시작하는 1-기반 인덱스다.</p>
+        <p>등록 방식은 두 가지이며, 두 방식은 기능적으로 동등하다.</p>
+        <div class="tblwrap"><table>
+          <tr><th>방식</th><th>생성 · 등록</th></tr>
+          <tr><td class="p">람다</td><td><code>Gpio(context, intervalMs)</code> + <code>gpio.onAnalogIn { }</code> — 필요한 신호만, 체이닝 가능</td></tr>
+          <tr><td class="p">리스너</td><td><code>Gpio(context, listener: Listener, intervalMs)</code> — 여러 신호를 한 객체에서 override</td></tr>
+        </table></div>
+        <p>각 콜백마다 대응하는 람다 메서드가 있다. <code>onAnalogIn { }</code>, <code>onDigitalIn { }</code>가 있으며, 아래 <code>Listener</code> 표의 <code>on…</code> 이름과 1:1로 대응한다. 채널 기반이라 콜백 인자가 (channel, value)/(channel, on) 두 개다. 람다 방식은 <b>등록한 신호만</b> 구독한다.</p>
+        <p><code>intervalMs</code>는 앱 콜백의 최소 간격(ms)이다. <code>0</code>이면 신호가 올 때마다 전부 전달하고, <code>&gt;0</code>이면 최대 그 간격마다 최신값을 1회만 전달한다.</p>
+        <div class="tblwrap">
+          <table>
+            <thead><tr><th>콜백</th><th>인자</th><th>설명</th></tr></thead>
+            <tbody>
+              <tr><td class="p">onAnalogIn</td><td class="ty">(channel: Int, value: Double)</td><td>아날로그 입력 값 갱신</td></tr>
+              <tr><td class="p">onDigitalIn</td><td class="ty">(channel: Int, on: Boolean)</td><td>디지털 입력 상태 갱신</td></tr>
+            </tbody>
+          </table>
+        </div>
+<pre><code><span class="tok-k">val</span> gpio = Gpio(<span class="tok-k">this</span>, intervalMs = 200)
+gpio.onAnalogIn  { ch, v -> runOnUiThread { render(ch, v) } }
+    .onDigitalIn { ch, on -> runOnUiThread { render(ch, on) } }
+lifecycle.addObserver(gpio)</code></pre>
+        <p class="sub"><b>여러 신호</b>를 한 객체에서 다루려면 아래와 같이 <b>리스너</b> 방식으로 등록할 수도 있다. 두 방식은 기능적으로 동등하다.</p>
+<pre><code><span class="tok-k">val</span> gpio = Gpio(<span class="tok-k">this</span>, <span class="tok-k">object</span> : Gpio.Listener {
+  <span class="tok-k">override fun</span> onAnalogIn(ch: <span class="tok-t">Int</span>, value: <span class="tok-t">Double</span>) = runOnUiThread { render(ch, value) }
+  <span class="tok-k">override fun</span> onDigitalIn(ch: <span class="tok-t">Int</span>, on: <span class="tok-t">Boolean</span>)   = runOnUiThread { render(ch, on) }
+}, intervalMs = 200)
+lifecycle.addObserver(gpio)</code></pre>
+      </div>
+    </div>
+
+    <h3>Gpio.digitalOut — 디지털 출력 제어</h3>
+    <div class="note warn"><span class="lbl">필수</span> 디지털 출력 제어는 매니페스트에 <code>USES_CONTROL</code> 선언이 필요하다(채널별 출력 key). 자세한 자격 및 실행레벨 규칙은 <a href="policy.html">정책 문서</a>를 참고한다.</div>
+    <div class="sig">
+      <div class="sig-h">
+        <span class="name">Gpio.digitalOut(context: Context, channel: Int): GpioOutput?</span>
+        <span class="tag ctrl">ctrl</span>
+        <span class="spring"></span>
+        <span class="mod">farm.agmo.vehicle.gpio</span>
+      </div>
+      <div class="sig-body">
+        <p>채널 1~7의 디지털 출력 제어권을 반환한다. <code>null</code>은 자격 없음, 세션 보유 중, 미연결, 잘못된 channel 중 하나를 의미한다.</p>
+      </div>
+    </div>
+
+    <div class="sig">
+      <div class="sig-h">
+        <span class="name">class GpioOutput</span>
+        <span class="tag ctrl">ctrl</span>
+        <span class="spring"></span>
+        <span class="mod">farm.agmo.vehicle.gpio</span>
+      </div>
+      <div class="sig-body">
+        <div class="tblwrap">
+          <table>
+            <thead><tr><th>메서드</th><th>타입</th><th>단위</th><th>설명</th></tr></thead>
+            <tbody>
+              <tr><td class="p">set(on: Boolean)</td><td class="ty">Boolean</td><td class="u">–</td><td>켜기(true)/끄기(false). false 반환 = 세션 상실 — digitalOut부터 다시</td></tr>
+              <tr><td class="p">onLost(cb: () -> Unit)</td><td class="ty">Unit</td><td class="u">–</td><td>상위 계층 선점 통지 등록</td></tr>
+              <tr><td class="p">release()</td><td class="ty">Unit</td><td class="u">–</td><td>정상 반납</td></tr>
+              <tr><td class="p">stopAndRelease()</td><td class="ty">Unit</td><td class="u">–</td><td>안전값(off)으로 되돌린 뒤 반납</td></tr>
+            </tbody>
+          </table>
+        </div>
+<pre><code><span class="tok-k">val</span> out = Gpio.digitalOut(<span class="tok-k">this</span>, channel = <span class="tok-s">3</span>) ?: <span class="tok-k">return</span>
+out.set(<span class="tok-k">true</span>)      <span class="tok-c">// Digital_OUT3 ON. false=세션 상실</span>
+out.release()</code></pre>
+      </div>
+    </div>
+  </section>
+
+  <div class="pagenav">
+    <a href="hitch.html"><div class="lb">이전</div><div class="tt">← 히치 (:hitch)</div></a>
+    <a class="next" href="flow.html"><div class="lb">다음</div><div class="tt">Flow (:flow) →</div></a>
+  </div>
+  <div class="foot">AgVehicle SDK · farm.agmo.vehicle · 이 문서는 SDK 소스에서 추출한 공개 API 레퍼런스입니다.</div>
+</main>
+</div>
+</body>
+</html>

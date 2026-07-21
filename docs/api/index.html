@@ -1,0 +1,336 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AgVehicle SDK — Docs</title>
+<style>
+/* AgVehicle SDK docs — shared stylesheet. Neutral dark/light, no brand hue. */
+:root{
+  --bg:#f7f7f8; --panel:#ffffff; --sidebar:#f1f1f3; --ink:#18181b; --mut:#52525b;
+  --dim:#8a8a93; --line:#e5e5e8; --line2:#d4d4d8; --code-bg:#f4f4f5; --code-ink:#27272a;
+  --acc:#3a5bbf; --acc-soft:#eef1fb; --acc-line:#cdd7f2;
+  --warn:#9a7420; --warn-soft:#f7f1e2; --danger:#b4544e;
+  --str:#9a742b; --sig-bg:#fbfbfc;
+  --mono:ui-monospace,"SF Mono",SFMono-Regular,Menlo,"JetBrains Mono",Consolas,monospace;
+  --sans:system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",sans-serif;
+}
+@media (prefers-color-scheme: dark){
+  :root{
+    --bg:#0d0d10; --panel:#151519; --sidebar:#101013; --ink:#e9e9ec; --mut:#a1a1aa;
+    --dim:#71717a; --line:#26262b; --line2:#35353c; --code-bg:#121216; --code-ink:#d4d4d8;
+    --acc:#93a8f0; --acc-soft:#161e33; --acc-line:#2c3a63;
+    --warn:#d3b06a; --warn-soft:#221c0e; --danger:#e0736c;
+    --str:#cbb079; --sig-bg:#111115;
+  }
+}
+:root[data-theme="light"]{
+  --bg:#f7f7f8; --panel:#ffffff; --sidebar:#f1f1f3; --ink:#18181b; --mut:#52525b;
+  --dim:#8a8a93; --line:#e5e5e8; --line2:#d4d4d8; --code-bg:#f4f4f5; --code-ink:#27272a;
+  --acc:#3a5bbf; --acc-soft:#eef1fb; --acc-line:#cdd7f2;
+  --warn:#9a7420; --warn-soft:#f7f1e2; --danger:#b4544e; --str:#9a742b; --sig-bg:#fbfbfc;
+}
+:root[data-theme="dark"]{
+  --bg:#0d0d10; --panel:#151519; --sidebar:#101013; --ink:#e9e9ec; --mut:#a1a1aa;
+  --dim:#71717a; --line:#26262b; --line2:#35353c; --code-bg:#121216; --code-ink:#d4d4d8;
+  --acc:#93a8f0; --acc-soft:#161e33; --acc-line:#2c3a63;
+  --warn:#d3b06a; --warn-soft:#221c0e; --danger:#e0736c; --str:#cbb079; --sig-bg:#111115;
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--sans);
+  font-size:15px;line-height:1.65;-webkit-font-smoothing:antialiased}
+a{color:var(--acc);text-decoration:none}
+a:hover{text-decoration:underline}
+code,kbd{font-family:var(--mono);font-size:.88em}
+.mono{font-family:var(--mono)}
+
+/* layout */
+.shell{display:grid;grid-template-columns:288px minmax(0,1fr);max-width:1360px;margin:0 auto;min-height:100vh}
+.side{position:sticky;top:0;align-self:start;height:100vh;overflow-y:auto;background:var(--sidebar);
+  border-right:1px solid var(--line);padding:26px 20px 60px}
+.main{padding:0 clamp(20px,4vw,64px) 120px;min-width:0}
+@media (max-width:860px){
+  .shell{grid-template-columns:1fr}
+  .side{position:static;height:auto;border-right:0;border-bottom:1px solid var(--line)}
+}
+
+/* sidebar */
+.brand{display:flex;align-items:center;gap:10px;margin-bottom:6px}
+.brand a{display:flex;align-items:center;gap:10px;color:inherit}
+.brand a:hover{text-decoration:none}
+.brand .logo{width:30px;height:30px;border-radius:8px;background:var(--ink);color:var(--bg);
+  display:grid;place-items:center;font-weight:800;font-size:14px;flex:none;font-family:var(--mono)}
+.brand b{font-size:16px;letter-spacing:-.01em}
+.ver{color:var(--dim);font-family:var(--mono);font-size:11px;margin:2px 0 20px 40px}
+.nav{display:flex;flex-direction:column;gap:1px}
+.nav .grp{color:var(--dim);font-size:10.5px;font-weight:700;letter-spacing:.09em;
+  text-transform:uppercase;margin:16px 0 5px;padding-left:9px}
+.nav a{color:var(--mut);padding:5px 9px;border-radius:7px;font-size:13.5px;
+  border-left:2px solid transparent;line-height:1.35}
+.nav a:hover{background:var(--panel);color:var(--ink);text-decoration:none}
+.nav a.active{color:var(--acc);background:var(--acc-soft);border-left-color:var(--acc);font-weight:600}
+.nav a.sub{padding-left:20px;font-size:12.5px;color:var(--dim)}
+.nav a .mono{font-size:12px}
+
+/* page header */
+.crumb{font-family:var(--mono);font-size:12px;color:var(--dim);margin:38px 0 4px}
+.crumb a{color:var(--dim)}
+h1{font-size:34px;line-height:1.12;letter-spacing:-.025em;margin:0 0 12px;font-weight:800;text-wrap:balance}
+.lead{font-size:17px;color:var(--mut);max-width:66ch;margin:8px 0 0}
+.hero{padding:40px 0 30px;border-bottom:1px solid var(--line);margin-bottom:8px}
+.hero h1{font-size:38px}
+.pathline{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-top:22px;font-family:var(--mono);font-size:12.5px;color:var(--mut)}
+.pathline .node{background:var(--panel);border:1px solid var(--line2);border-radius:7px;padding:5px 11px;white-space:nowrap}
+.pathline .node.hl{border-color:var(--acc-line);background:var(--acc-soft);color:var(--acc);font-weight:600}
+.pathline .arw{color:var(--dim)}
+
+/* sections */
+section{padding-top:44px}
+section>h2,h2{font-size:25px;letter-spacing:-.02em;margin:0 0 6px;font-weight:800;scroll-margin-top:20px}
+.kicker{color:var(--acc);font-family:var(--mono);font-size:12px;font-weight:700;letter-spacing:.04em;margin-bottom:8px}
+h3{font-size:18px;margin:32px 0 8px;letter-spacing:-.01em;scroll-margin-top:20px}
+h4{font-size:13px;margin:22px 0 6px;color:var(--mut);text-transform:uppercase;letter-spacing:.05em}
+p{margin:10px 0}
+.sub{color:var(--mut)}
+
+/* quickstart steps */
+.steps{counter-reset:step;display:flex;flex-direction:column;gap:20px;margin:20px 0}
+.step{position:relative;padding-left:46px}
+.step::before{counter-increment:step;content:counter(step);position:absolute;left:0;top:-2px;
+  width:30px;height:30px;border-radius:8px;background:var(--ink);color:var(--bg);
+  display:grid;place-items:center;font-weight:800;font-size:14px;font-family:var(--mono)}
+.step h3{margin:2px 0 6px}
+.step pre{margin-top:10px}
+
+/* code */
+pre{background:var(--code-bg);border:1px solid var(--line);border-radius:12px;padding:16px 18px;
+  overflow-x:auto;margin:14px 0;line-height:1.55}
+pre code{color:var(--code-ink);font-size:13px}
+.tok-k{color:var(--acc);font-weight:600}
+.tok-t{color:var(--ink);font-weight:600}
+.tok-c{color:var(--dim);font-style:italic}
+.tok-s{color:var(--str)}
+:not(pre)>code{background:var(--code-bg);border:1px solid var(--line);border-radius:5px;
+  padding:.5px 5px;color:var(--code-ink)}
+
+/* signature block */
+.sig{background:var(--sig-bg);border:1px solid var(--line2);border-radius:12px;margin:20px 0;overflow:hidden}
+.sig>.sig-h{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;padding:13px 18px;
+  border-bottom:1px solid var(--line);background:var(--panel)}
+.sig-h .name{font-family:var(--mono);font-size:15px;font-weight:700;color:var(--ink)}
+.sig-h .tag{font-family:var(--mono);font-size:10.5px;font-weight:700;padding:2px 7px;border-radius:999px;letter-spacing:.03em;border:1px solid var(--line2)}
+.tag.read{color:var(--mut);background:var(--code-bg)}
+.tag.ctrl{color:var(--acc);background:var(--acc-soft);border-color:var(--acc-line)}
+.tag.oem{color:var(--mut);background:transparent;border-style:dashed}
+.tag.enum{color:var(--warn);background:var(--warn-soft);border-color:transparent}
+.sig-h .spring{flex:1}
+.sig-h .mod{font-family:var(--mono);font-size:11.5px;color:var(--dim)}
+.sig-h .pgn{font-family:var(--mono);font-size:11px;color:var(--dim);background:var(--code-bg);border:1px solid var(--line);border-radius:5px;padding:1px 6px}
+.sig-body{padding:6px 18px 16px}
+.sig-body pre{background:var(--code-bg);margin:12px 0}
+.sig-body>p:first-child{margin-top:12px}
+
+/* tables */
+table{border-collapse:collapse;width:100%;margin:12px 0;font-size:13.5px}
+th,td{text-align:left;padding:8px 12px;border-bottom:1px solid var(--line);vertical-align:top}
+th{color:var(--dim);font-size:11px;text-transform:uppercase;letter-spacing:.05em;font-weight:700}
+td.p{font-family:var(--mono);color:var(--code-ink);white-space:nowrap;font-size:12.5px}
+td .ty,.ty{color:var(--mut);font-family:var(--mono);font-size:12px}
+td.u{font-family:var(--mono);color:var(--dim);font-size:12px;white-space:nowrap}
+.tblwrap{overflow-x:auto;border:1px solid var(--line);border-radius:12px;margin:14px 0}
+.tblwrap table{margin:0}
+.tblwrap th,.tblwrap td{padding:9px 14px}
+.tblwrap tr:last-child td{border-bottom:0}
+
+/* callouts */
+.note{border:1px solid var(--line2);border-left:3px solid var(--mut);background:var(--code-bg);
+  border-radius:8px;padding:11px 15px;margin:16px 0;font-size:13.5px}
+.note.warn{border-left-color:var(--warn);background:var(--warn-soft)}
+.note.info{border-left-color:var(--acc);background:var(--acc-soft)}
+.note b{color:var(--ink)}
+.note .lbl{font-weight:700;font-size:11px;letter-spacing:.05em;text-transform:uppercase;margin-right:6px;color:var(--mut)}
+.note.info .lbl{color:var(--acc)}
+
+/* module grid (index) */
+.mods{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:14px;margin:18px 0}
+.mod{display:block;background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:15px 16px;color:inherit;transition:border-color .12s}
+.mod:hover{border-color:var(--acc-line);text-decoration:none}
+.mod .co{font-family:var(--mono);font-size:13px;font-weight:700;color:var(--ink)}
+.mod .std{font-size:10px;font-weight:700;letter-spacing:.05em;padding:1px 6px;border-radius:999px;margin-left:6px;
+  color:var(--mut);background:var(--code-bg);border:1px solid var(--line2)}
+.mod .oemb{color:var(--acc);background:var(--acc-soft);border-color:var(--acc-line)}
+.mod .d{color:var(--mut);font-size:12.5px;margin-top:6px;line-height:1.5}
+.mod .n{font-size:11px;color:var(--dim);margin-top:8px;font-family:var(--mono)}
+
+/* tier ladder */
+.ladder{display:flex;flex-direction:column;gap:8px;margin:16px 0}
+.rung{display:flex;align-items:center;gap:14px;border:1px solid var(--line2);border-radius:10px;
+  padding:12px 16px;background:var(--panel)}
+.rung .rk{font-family:var(--mono);font-weight:800;font-size:15px;width:66px;flex:none}
+.rung .nm{font-weight:700}
+.rung .ds{color:var(--mut);font-size:13px;margin-left:auto;text-align:right}
+.rung.safety{border-color:color-mix(in srgb,var(--danger) 45%,var(--line2))}.rung.safety .rk{color:var(--danger)}
+.rung.app{border-color:var(--acc-line)}.rung.app .rk{color:var(--acc)}
+.rung.system .rk{color:var(--dim)}
+
+/* page nav (prev/next) */
+.pagenav{display:flex;justify-content:space-between;gap:14px;margin-top:56px;padding-top:22px;border-top:1px solid var(--line)}
+.pagenav a{flex:1;border:1px solid var(--line);border-radius:10px;padding:12px 16px;color:inherit}
+.pagenav a:hover{border-color:var(--acc-line);text-decoration:none}
+.pagenav .lb{font-size:11px;color:var(--dim);text-transform:uppercase;letter-spacing:.05em}
+.pagenav .tt{font-weight:700;color:var(--acc);margin-top:2px}
+.pagenav .next{text-align:right}
+
+.pill{display:inline-block;font-family:var(--mono);font-size:11px;color:var(--acc);
+  background:var(--acc-soft);border:1px solid var(--acc-line);border-radius:999px;padding:1px 8px}
+.foot{margin-top:40px;padding-top:20px;border-top:1px solid var(--line);color:var(--dim);font-size:12.5px}
+:target{scroll-margin-top:16px}
+::selection{background:var(--acc-soft)}
+
+</style>
+</head>
+<body>
+<div class="shell">
+<aside class="side">
+  <div class="brand"><a href="index.html"><span class="logo">Ag</span><b>AgVehicle SDK</b></a></div>
+  <div class="ver">farm.agmo.vehicle · v0.1.x</div>
+  <nav class="nav">
+    <div class="grp">시작</div>
+    <a class="active" href="index.html">개요 · Quickstart</a>
+    <a href="index.html#install">설치 (Gradle)</a>
+    <a href="index.html#modules">모듈 구성</a>
+    <div class="grp">핵심 (core)</div>
+    <a href="core.html">AgVehicle · 연결</a>
+    <a class="sub" href="core.html#reading">신호 읽기 · subscribe</a>
+    <a class="sub" href="core.html#throttle">갱신 스로틀 · intervalMs</a>
+    <a class="sub" href="core.html#control">제어 세션 · acquire</a>
+    <a class="sub" href="core.html#catalog">카탈로그 · 동적 정의</a>
+    <a class="sub" href="core.html#types">코어 타입</a>
+    <div class="grp">도메인 모델 (표준)</div>
+    <a href="engine.html"><span class="mono">:engine</span></a>
+    <a href="vehicle.html"><span class="mono">:vehicle</span></a>
+    <a href="hitch.html"><span class="mono">:hitch</span></a>
+    <a href="imu.html"><span class="mono">:imu</span> · <span class="mono">:gpio</span></a>
+    <a href="flow.html"><span class="mono">:flow</span></a>
+    <div class="grp">OEM (제조사 고유)</div>
+    <a href="oem-tractor.html"><span class="mono">:oem-tractor</span></a>
+    <a href="oem-steer.html"><span class="mono">:oem-steer</span></a>
+    <a href="oem-spreader.html"><span class="mono">:oem-spreader</span></a>
+    <a href="oem-imu.html"><span class="mono">:oem-imu</span></a>
+    <a href="oem-genericio.html"><span class="mono">:oem-genericio</span></a>
+    <div class="grp">제어 정책</div>
+    <a href="policy.html">자격 · 실행레벨(Tier)</a>
+  </nav>
+</aside>
+
+<main class="main">
+  <header class="hero">
+    <h1>AgVehicle SDK</h1>
+    <p class="lead">농기계 HMI 플랫폼의 <b>차량 신호 SDK</b>. 앱에서 CAN 신호를 읽고(구독) 제어(쓰기)하는 공개 창구다. 내부적으로 시스템 서비스에 <code>bindService</code>로 붙고, 서비스가 데몬을 거쳐 CAN 버스와 통신한다. 앱은 그 계층을 몰라도 된다.</p>
+    <div class="pathline">
+      <span class="node hl">앱 (이 SDK)</span><span class="arw">──bindService──▶</span>
+      <span class="node">agvehicled</span><span class="arw">──소켓──▶</span>
+      <span class="node">agcand</span><span class="arw">──▶</span>
+      <span class="node">CAN 버스</span>
+    </div>
+  </header>
+
+  <section id="quickstart" style="padding-top:34px">
+    <div class="kicker">GETTING STARTED</div>
+    <h2>Quickstart</h2>
+    <p>엔진 RPM을 화면에 띄우는 최소 예시다. <b>의존성 한 줄 → 리스너 붙이기 → 생명주기 한 줄</b>이면 끝이다.</p>
+    <div class="steps">
+      <div class="step">
+        <h3>의존성 추가</h3>
+        <p class="sub">필요한 도메인 모듈만 넣으면 <code>:core</code>는 자동으로 딸려온다.</p>
+<pre><code><span class="tok-c">// app/build.gradle.kts</span>
+implementation(<span class="tok-s">"farm.agmo.vehicle:engine:0.1.0"</span>)</code></pre>
+      </div>
+      <div class="step">
+        <h3>신호 읽기 — <code>onXxx { }</code> 람다 + 생명주기 한 줄</h3>
+        <p class="sub">필요한 신호만 <b>람다</b>로 등록한다. <code>object</code>나 <code>override</code>가 필요 없다. <code>addObserver</code>를 호출하면 <code>ON_START</code>에 자동으로 구독되고 <code>ON_STOP</code>에 자동으로 해제된다. 콜백은 binder 스레드에서 호출되므로 UI는 <code>runOnUiThread</code>로 감싼다.</p>
+<pre><code><span class="tok-k">val</span> engine = Engine(<span class="tok-k">this</span>, intervalMs = 200)             <span class="tok-c">// 5Hz — core.html#throttle</span>
+engine.onEec1 { e -> runOnUiThread {
+    rpmView.text = <span class="tok-s">"${e.rpm.toInt()} rpm"</span>
+} }
+lifecycle.addObserver(engine)                       <span class="tok-c">// ← 이 한 줄이 구독/해제 전부</span></code></pre>
+        <p class="sub"><b>여러 신호</b>를 한 곳에서 다루려면 리스너 방식도 동등하다(둘은 같은 일을 한다):</p>
+<pre><code><span class="tok-k">val</span> engine = Engine(<span class="tok-k">this</span>, <span class="tok-k">object</span> : Engine.Listener {
+    <span class="tok-k">override fun</span> onEec1(e: <span class="tok-t">Eec1</span>) = runOnUiThread { render(e.rpm) }
+    <span class="tok-k">override fun</span> onTemperature(t: <span class="tok-t">EngineTemperature</span>) = runOnUiThread { render(t.coolantC) }
+}, intervalMs = 200)</code></pre>
+      </div>
+      <div class="step">
+        <h3>(선택) 제어 — 히치 올리기</h3>
+        <p class="sub">쓰기(제어)는 세션을 얻어서 한다. <code>null</code>이면 자격이 없거나 이미 보유 중이거나 연결되지 않은 상태다.</p>
+<pre><code><span class="tok-k">val</span> ctrl = Hitch.control(<span class="tok-k">this</span>) ?: <span class="tok-k">return</span>     <span class="tok-c">// 매니페스트 USES_CONTROL 필요</span>
+ctrl.onLost { runOnUiThread { lockUi() } }         <span class="tok-c">// 상위 계층이 뺏으면</span>
+ctrl.setPosition(100.0)                            <span class="tok-c">// % — raw 변환은 SDK가 처리</span>
+ctrl.release()                                     <span class="tok-c">// 정상 반납</span></code></pre>
+      </div>
+    </div>
+    <div class="note info"><span class="lbl">다음</span> 핵심 API는 <a href="core.html">core</a>를 참고한다. 도메인별 신호는 좌측 메뉴(<a href="engine.html">engine</a>, <a href="vehicle.html">vehicle</a>, <a href="oem-tractor.html">oem-tractor</a> 등)에서 확인한다. 여러 앱이 같은 제어를 노리면 <a href="policy.html">실행레벨(Tier)</a>로 조정된다.</div>
+  </section>
+
+  <section id="overview">
+    <div class="kicker">개념</div>
+    <h2>개요</h2>
+    <p>SDK는 <b>기반 core 하나 + 신호 도메인별 모듈 여러 개</b>로 나뉜다. 필요한 도메인만 가져다 쓴다. 콜백이 기본이라 코루틴 의존이 없고(Java 앱도 OK), 생명주기는 <code>lifecycle.addObserver(...)</code> 한 줄로 자동 연동된다.</p>
+    <p><b>설계 원칙: CAN 메시지(ID) 하나 = 클래스 하나.</b> 한 PGN은 한 프레임으로 통째로 오므로, 그 안의 신호들(pitch+roll 등)은 한 데이터 클래스의 필드가 된다. 도메인 모듈은 core 위에 타입 있는 파사드를 얹은 것이다. 신호 조립, raw 변환 은닉, 자동완성 발견성 등을 제공한다.</p>
+    <div class="note info"><span class="lbl">한눈에</span> 읽기에는 <b>자격이 필요 없다</b>. 쓰기(제어)는 매니페스트 <a href="policy.html">자격 선언</a> + <a href="core.html#control">제어 세션</a>이 필요하고, 여러 앱이 같은 신호를 노릴 땐 <a href="policy.html#tier">실행레벨(Tier)</a>로 중재된다.</div>
+  </section>
+
+  <section id="install">
+    <div class="kicker">GETTING STARTED</div>
+    <h2>설치 (Gradle)</h2>
+    <p>GitHub Packages(Maven)에서 받는다. 필요한 도메인 모듈만 넣으면 <code>:core</code>는 자동으로 딸려온다.</p>
+<pre><code><span class="tok-c">// settings.gradle.kts</span>
+dependencyResolutionManagement {
+  repositories {
+    maven {
+      url = uri(<span class="tok-s">"https://maven.pkg.github.com/hobeen-agmo/agvehicle-sdk"</span>)
+      credentials {           <span class="tok-c">// read:packages 토큰</span>
+        username = providers.gradleProperty(<span class="tok-s">"gpr.user"</span>).get()
+        password = providers.gradleProperty(<span class="tok-s">"gpr.token"</span>).get()
+      }
+    }
+  }
+}
+
+<span class="tok-c">// app/build.gradle.kts</span>
+dependencies {
+  implementation(<span class="tok-s">"farm.agmo.vehicle:engine:0.1.0"</span>)   <span class="tok-c">// :core 자동 포함</span>
+  implementation(<span class="tok-s">"farm.agmo.vehicle:hitch:0.1.0"</span>)
+}</code></pre>
+    <div class="note warn"><span class="lbl">인증</span> GitHub Packages는 패키지가 <b>public이어도 익명 다운로드를 허용하지 않는다</b>. 소비자도 <code>read:packages</code> 토큰이 필요하다(GitHub 제약). 토큰 없는 공개 배포가 필요하면 JitPack / Maven Central을 검토한다.</div>
+  </section>
+
+  <section id="modules">
+    <div class="kicker">모듈</div>
+    <h2>모듈 구성</h2>
+    <p>표준(공개 규격 J1939/ISO 11783을 재작성할 수 있는 모듈)과 <b>AGMO 제조사 고유</b>(oem)로 나뉜다. 각 모듈 카드를 눌러 상세 신호와 클래스 문서로 이동한다.</p>
+    <div class="mods">
+      <a class="mod" href="core.html"><span class="co">:core</span><span class="std">표준·기반</span><div class="d">연결, 제네릭 구독/제어, 카탈로그, Signal 베이스 등을 제공한다.</div><div class="n">AgVehicle · Subscription · ControlSession</div></a>
+      <a class="mod" href="engine.html"><span class="co">:engine</span><span class="std">표준</span><div class="d">엔진 신호를 읽는다. RPM, 부하, 온도, 압력, 연료, 배기 등이 포함된다.</div><div class="n">Eec1 · Et1 · Eflp1 · Ic1 · Lfe …</div></a>
+      <a class="mod" href="vehicle.html"><span class="co">:vehicle</span><span class="std">표준</span><div class="d">차량 상태를 읽는다. 차속, PTO, 배터리, DPF, GPS, 변속 등이 포함된다.</div><div class="n">Ccvs1 · Etc1/2 · Vdc2 · Vep1 …</div></a>
+      <a class="mod" href="hitch.html"><span class="co">:hitch</span><span class="std">표준</span><div class="d">히치 위치를 읽고 제어한다. setPosition(%)으로 raw 값을 은닉한다.</div><div class="n">HitchPosition · HitchControl</div></a>
+      <a class="mod" href="imu.html"><span class="co">:imu · :gpio</span><span class="std">표준</span><div class="d">자세(각도, 각속도, 가속도)를 읽고 범용 GPIO IO를 제공한다.</div><div class="n">ImuAngles · ImuRates · GpioSignals</div></a>
+      <a class="mod" href="flow.html"><span class="co">:flow</span><span class="std">표준·옵션</span><div class="d">위 신호들을 Kotlin Flow로 제공한다. 코루틴을 사용하는 유일한 모듈이다.</div><div class="n">ImuFlow · EngineFlow …</div></a>
+      <a class="mod" href="oem-tractor.html"><span class="co">:oem-tractor</span><span class="std oemb">🏭 AGMO</span><div class="d">FNR, 변속, PTO, 유압, 가속 신호를 읽고 AutoLift와 히치를 제어한다.</div><div class="n">Fnr · RangeShift · Pto · AutoLift</div></a>
+      <a class="mod" href="oem-steer.html"><span class="co">:oem-steer</span><span class="std oemb">🏭 AGMO</span><div class="d">조향모터(Keya) 상태를 읽고 조향 명령을 내린다.</div><div class="n">SteerAngle · SteerMotorStatus</div></a>
+      <a class="mod" href="oem-spreader.html"><span class="co">:oem-spreader</span><span class="std oemb">🏭 AGMO</span><div class="d">살포기 GNSS를 읽고 살포 모터를 제어한다.</div><div class="n">GnssPosition · GnssTimeStatus</div></a>
+      <a class="mod" href="oem-imu.html"><span class="co">:oem-imu</span><span class="std oemb">🏭 AGMO</span><div class="d">보조 자이로(Allynav R70)를 읽고 MTLT305를 설정한다.</div><div class="n">GyroAngle · ImuSensorStatus</div></a>
+      <a class="mod" href="oem-genericio.html"><span class="co">:oem-genericio</span><span class="std oemb">🏭 AGMO</span><div class="d">범용 CAN IO 보드의 입력을 읽고 PWM/LED를 출력한다.</div><div class="n">GenericIoSignals</div></a>
+    </div>
+  </section>
+
+  <div class="pagenav">
+    <span></span>
+    <a class="next" href="core.html"><div class="lb">다음</div><div class="tt">핵심 (core) · AgVehicle →</div></a>
+  </div>
+  <div class="foot">AgVehicle SDK · farm.agmo.vehicle · 이 문서는 SDK 소스에서 추출한 공개 API 레퍼런스입니다.</div>
+</main>
+</div>
+</body>
+</html>

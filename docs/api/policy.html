@@ -1,0 +1,319 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>제어 정책 — AgVehicle SDK</title>
+<style>
+/* AgVehicle SDK docs — shared stylesheet. Neutral dark/light, no brand hue. */
+:root{
+  --bg:#f7f7f8; --panel:#ffffff; --sidebar:#f1f1f3; --ink:#18181b; --mut:#52525b;
+  --dim:#8a8a93; --line:#e5e5e8; --line2:#d4d4d8; --code-bg:#f4f4f5; --code-ink:#27272a;
+  --acc:#3a5bbf; --acc-soft:#eef1fb; --acc-line:#cdd7f2;
+  --warn:#9a7420; --warn-soft:#f7f1e2; --danger:#b4544e;
+  --str:#9a742b; --sig-bg:#fbfbfc;
+  --mono:ui-monospace,"SF Mono",SFMono-Regular,Menlo,"JetBrains Mono",Consolas,monospace;
+  --sans:system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",sans-serif;
+}
+@media (prefers-color-scheme: dark){
+  :root{
+    --bg:#0d0d10; --panel:#151519; --sidebar:#101013; --ink:#e9e9ec; --mut:#a1a1aa;
+    --dim:#71717a; --line:#26262b; --line2:#35353c; --code-bg:#121216; --code-ink:#d4d4d8;
+    --acc:#93a8f0; --acc-soft:#161e33; --acc-line:#2c3a63;
+    --warn:#d3b06a; --warn-soft:#221c0e; --danger:#e0736c;
+    --str:#cbb079; --sig-bg:#111115;
+  }
+}
+:root[data-theme="light"]{
+  --bg:#f7f7f8; --panel:#ffffff; --sidebar:#f1f1f3; --ink:#18181b; --mut:#52525b;
+  --dim:#8a8a93; --line:#e5e5e8; --line2:#d4d4d8; --code-bg:#f4f4f5; --code-ink:#27272a;
+  --acc:#3a5bbf; --acc-soft:#eef1fb; --acc-line:#cdd7f2;
+  --warn:#9a7420; --warn-soft:#f7f1e2; --danger:#b4544e; --str:#9a742b; --sig-bg:#fbfbfc;
+}
+:root[data-theme="dark"]{
+  --bg:#0d0d10; --panel:#151519; --sidebar:#101013; --ink:#e9e9ec; --mut:#a1a1aa;
+  --dim:#71717a; --line:#26262b; --line2:#35353c; --code-bg:#121216; --code-ink:#d4d4d8;
+  --acc:#93a8f0; --acc-soft:#161e33; --acc-line:#2c3a63;
+  --warn:#d3b06a; --warn-soft:#221c0e; --danger:#e0736c; --str:#cbb079; --sig-bg:#111115;
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--sans);
+  font-size:15px;line-height:1.65;-webkit-font-smoothing:antialiased}
+a{color:var(--acc);text-decoration:none}
+a:hover{text-decoration:underline}
+code,kbd{font-family:var(--mono);font-size:.88em}
+.mono{font-family:var(--mono)}
+
+/* layout */
+.shell{display:grid;grid-template-columns:288px minmax(0,1fr);max-width:1360px;margin:0 auto;min-height:100vh}
+.side{position:sticky;top:0;align-self:start;height:100vh;overflow-y:auto;background:var(--sidebar);
+  border-right:1px solid var(--line);padding:26px 20px 60px}
+.main{padding:0 clamp(20px,4vw,64px) 120px;min-width:0}
+@media (max-width:860px){
+  .shell{grid-template-columns:1fr}
+  .side{position:static;height:auto;border-right:0;border-bottom:1px solid var(--line)}
+}
+
+/* sidebar */
+.brand{display:flex;align-items:center;gap:10px;margin-bottom:6px}
+.brand a{display:flex;align-items:center;gap:10px;color:inherit}
+.brand a:hover{text-decoration:none}
+.brand .logo{width:30px;height:30px;border-radius:8px;background:var(--ink);color:var(--bg);
+  display:grid;place-items:center;font-weight:800;font-size:14px;flex:none;font-family:var(--mono)}
+.brand b{font-size:16px;letter-spacing:-.01em}
+.ver{color:var(--dim);font-family:var(--mono);font-size:11px;margin:2px 0 20px 40px}
+.nav{display:flex;flex-direction:column;gap:1px}
+.nav .grp{color:var(--dim);font-size:10.5px;font-weight:700;letter-spacing:.09em;
+  text-transform:uppercase;margin:16px 0 5px;padding-left:9px}
+.nav a{color:var(--mut);padding:5px 9px;border-radius:7px;font-size:13.5px;
+  border-left:2px solid transparent;line-height:1.35}
+.nav a:hover{background:var(--panel);color:var(--ink);text-decoration:none}
+.nav a.active{color:var(--acc);background:var(--acc-soft);border-left-color:var(--acc);font-weight:600}
+.nav a.sub{padding-left:20px;font-size:12.5px;color:var(--dim)}
+.nav a .mono{font-size:12px}
+
+/* page header */
+.crumb{font-family:var(--mono);font-size:12px;color:var(--dim);margin:38px 0 4px}
+.crumb a{color:var(--dim)}
+h1{font-size:34px;line-height:1.12;letter-spacing:-.025em;margin:0 0 12px;font-weight:800;text-wrap:balance}
+.lead{font-size:17px;color:var(--mut);max-width:66ch;margin:8px 0 0}
+.hero{padding:40px 0 30px;border-bottom:1px solid var(--line);margin-bottom:8px}
+.hero h1{font-size:38px}
+.pathline{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-top:22px;font-family:var(--mono);font-size:12.5px;color:var(--mut)}
+.pathline .node{background:var(--panel);border:1px solid var(--line2);border-radius:7px;padding:5px 11px;white-space:nowrap}
+.pathline .node.hl{border-color:var(--acc-line);background:var(--acc-soft);color:var(--acc);font-weight:600}
+.pathline .arw{color:var(--dim)}
+
+/* sections */
+section{padding-top:44px}
+section>h2,h2{font-size:25px;letter-spacing:-.02em;margin:0 0 6px;font-weight:800;scroll-margin-top:20px}
+.kicker{color:var(--acc);font-family:var(--mono);font-size:12px;font-weight:700;letter-spacing:.04em;margin-bottom:8px}
+h3{font-size:18px;margin:32px 0 8px;letter-spacing:-.01em;scroll-margin-top:20px}
+h4{font-size:13px;margin:22px 0 6px;color:var(--mut);text-transform:uppercase;letter-spacing:.05em}
+p{margin:10px 0}
+.sub{color:var(--mut)}
+
+/* quickstart steps */
+.steps{counter-reset:step;display:flex;flex-direction:column;gap:20px;margin:20px 0}
+.step{position:relative;padding-left:46px}
+.step::before{counter-increment:step;content:counter(step);position:absolute;left:0;top:-2px;
+  width:30px;height:30px;border-radius:8px;background:var(--ink);color:var(--bg);
+  display:grid;place-items:center;font-weight:800;font-size:14px;font-family:var(--mono)}
+.step h3{margin:2px 0 6px}
+.step pre{margin-top:10px}
+
+/* code */
+pre{background:var(--code-bg);border:1px solid var(--line);border-radius:12px;padding:16px 18px;
+  overflow-x:auto;margin:14px 0;line-height:1.55}
+pre code{color:var(--code-ink);font-size:13px}
+.tok-k{color:var(--acc);font-weight:600}
+.tok-t{color:var(--ink);font-weight:600}
+.tok-c{color:var(--dim);font-style:italic}
+.tok-s{color:var(--str)}
+:not(pre)>code{background:var(--code-bg);border:1px solid var(--line);border-radius:5px;
+  padding:.5px 5px;color:var(--code-ink)}
+
+/* signature block */
+.sig{background:var(--sig-bg);border:1px solid var(--line2);border-radius:12px;margin:20px 0;overflow:hidden}
+.sig>.sig-h{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;padding:13px 18px;
+  border-bottom:1px solid var(--line);background:var(--panel)}
+.sig-h .name{font-family:var(--mono);font-size:15px;font-weight:700;color:var(--ink)}
+.sig-h .tag{font-family:var(--mono);font-size:10.5px;font-weight:700;padding:2px 7px;border-radius:999px;letter-spacing:.03em;border:1px solid var(--line2)}
+.tag.read{color:var(--mut);background:var(--code-bg)}
+.tag.ctrl{color:var(--acc);background:var(--acc-soft);border-color:var(--acc-line)}
+.tag.oem{color:var(--mut);background:transparent;border-style:dashed}
+.tag.enum{color:var(--warn);background:var(--warn-soft);border-color:transparent}
+.sig-h .spring{flex:1}
+.sig-h .mod{font-family:var(--mono);font-size:11.5px;color:var(--dim)}
+.sig-h .pgn{font-family:var(--mono);font-size:11px;color:var(--dim);background:var(--code-bg);border:1px solid var(--line);border-radius:5px;padding:1px 6px}
+.sig-body{padding:6px 18px 16px}
+.sig-body pre{background:var(--code-bg);margin:12px 0}
+.sig-body>p:first-child{margin-top:12px}
+
+/* tables */
+table{border-collapse:collapse;width:100%;margin:12px 0;font-size:13.5px}
+th,td{text-align:left;padding:8px 12px;border-bottom:1px solid var(--line);vertical-align:top}
+th{color:var(--dim);font-size:11px;text-transform:uppercase;letter-spacing:.05em;font-weight:700}
+td.p{font-family:var(--mono);color:var(--code-ink);white-space:nowrap;font-size:12.5px}
+td .ty,.ty{color:var(--mut);font-family:var(--mono);font-size:12px}
+td.u{font-family:var(--mono);color:var(--dim);font-size:12px;white-space:nowrap}
+.tblwrap{overflow-x:auto;border:1px solid var(--line);border-radius:12px;margin:14px 0}
+.tblwrap table{margin:0}
+.tblwrap th,.tblwrap td{padding:9px 14px}
+.tblwrap tr:last-child td{border-bottom:0}
+
+/* callouts */
+.note{border:1px solid var(--line2);border-left:3px solid var(--mut);background:var(--code-bg);
+  border-radius:8px;padding:11px 15px;margin:16px 0;font-size:13.5px}
+.note.warn{border-left-color:var(--warn);background:var(--warn-soft)}
+.note.info{border-left-color:var(--acc);background:var(--acc-soft)}
+.note b{color:var(--ink)}
+.note .lbl{font-weight:700;font-size:11px;letter-spacing:.05em;text-transform:uppercase;margin-right:6px;color:var(--mut)}
+.note.info .lbl{color:var(--acc)}
+
+/* module grid (index) */
+.mods{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:14px;margin:18px 0}
+.mod{display:block;background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:15px 16px;color:inherit;transition:border-color .12s}
+.mod:hover{border-color:var(--acc-line);text-decoration:none}
+.mod .co{font-family:var(--mono);font-size:13px;font-weight:700;color:var(--ink)}
+.mod .std{font-size:10px;font-weight:700;letter-spacing:.05em;padding:1px 6px;border-radius:999px;margin-left:6px;
+  color:var(--mut);background:var(--code-bg);border:1px solid var(--line2)}
+.mod .oemb{color:var(--acc);background:var(--acc-soft);border-color:var(--acc-line)}
+.mod .d{color:var(--mut);font-size:12.5px;margin-top:6px;line-height:1.5}
+.mod .n{font-size:11px;color:var(--dim);margin-top:8px;font-family:var(--mono)}
+
+/* tier ladder */
+.ladder{display:flex;flex-direction:column;gap:8px;margin:16px 0}
+.rung{display:flex;align-items:center;gap:14px;border:1px solid var(--line2);border-radius:10px;
+  padding:12px 16px;background:var(--panel)}
+.rung .rk{font-family:var(--mono);font-weight:800;font-size:15px;width:66px;flex:none}
+.rung .nm{font-weight:700}
+.rung .ds{color:var(--mut);font-size:13px;margin-left:auto;text-align:right}
+.rung.safety{border-color:color-mix(in srgb,var(--danger) 45%,var(--line2))}.rung.safety .rk{color:var(--danger)}
+.rung.app{border-color:var(--acc-line)}.rung.app .rk{color:var(--acc)}
+.rung.system .rk{color:var(--dim)}
+
+/* page nav (prev/next) */
+.pagenav{display:flex;justify-content:space-between;gap:14px;margin-top:56px;padding-top:22px;border-top:1px solid var(--line)}
+.pagenav a{flex:1;border:1px solid var(--line);border-radius:10px;padding:12px 16px;color:inherit}
+.pagenav a:hover{border-color:var(--acc-line);text-decoration:none}
+.pagenav .lb{font-size:11px;color:var(--dim);text-transform:uppercase;letter-spacing:.05em}
+.pagenav .tt{font-weight:700;color:var(--acc);margin-top:2px}
+.pagenav .next{text-align:right}
+
+.pill{display:inline-block;font-family:var(--mono);font-size:11px;color:var(--acc);
+  background:var(--acc-soft);border:1px solid var(--acc-line);border-radius:999px;padding:1px 8px}
+.foot{margin-top:40px;padding-top:20px;border-top:1px solid var(--line);color:var(--dim);font-size:12.5px}
+:target{scroll-margin-top:16px}
+::selection{background:var(--acc-soft)}
+
+</style>
+</head>
+<body>
+<div class="shell">
+<aside class="side">
+  <div class="brand"><a href="index.html"><span class="logo">Ag</span><b>AgVehicle SDK</b></a></div>
+  <div class="ver">farm.agmo.vehicle · v0.1.x</div>
+  <nav class="nav">
+    <div class="grp">시작</div>
+    <a href="index.html">개요 · Quickstart</a>
+    <a href="index.html#install">설치 (Gradle)</a>
+    <a href="index.html#modules">모듈 구성</a>
+    <div class="grp">핵심 (core)</div>
+    <a href="core.html">AgVehicle · 연결</a>
+    <a class="sub" href="core.html#reading">신호 읽기 · subscribe</a>
+    <a class="sub" href="core.html#throttle">갱신 스로틀 · intervalMs</a>
+    <a class="sub" href="core.html#control">제어 세션 · acquire</a>
+    <a class="sub" href="core.html#catalog">카탈로그 · 동적 정의</a>
+    <a class="sub" href="core.html#types">코어 타입</a>
+    <div class="grp">도메인 모델 (표준)</div>
+    <a href="engine.html"><span class="mono">:engine</span></a>
+    <a href="vehicle.html"><span class="mono">:vehicle</span></a>
+    <a href="hitch.html"><span class="mono">:hitch</span></a>
+    <a href="imu.html"><span class="mono">:imu</span> · <span class="mono">:gpio</span></a>
+    <a href="flow.html"><span class="mono">:flow</span></a>
+    <div class="grp">OEM (제조사 고유)</div>
+    <a href="oem-tractor.html"><span class="mono">:oem-tractor</span></a>
+    <a href="oem-steer.html"><span class="mono">:oem-steer</span></a>
+    <a href="oem-spreader.html"><span class="mono">:oem-spreader</span></a>
+    <a href="oem-imu.html"><span class="mono">:oem-imu</span></a>
+    <a href="oem-genericio.html"><span class="mono">:oem-genericio</span></a>
+    <div class="grp">제어 정책</div>
+    <a class="active" href="policy.html">자격 · 실행레벨(Tier)</a>
+  </nav>
+</aside>
+
+<main class="main">
+  <div class="crumb"><a href="index.html">Docs</a> / 제어 정책</div>
+  <h1>자격 · 실행레벨(Tier)</h1>
+  <p class="lead">이 문서는 여러 앱이 같은 제어 신호를 동시에 쥐려 할 때 무엇이 허용되고 무엇이 차단되는지를 정하는 두 축을 설명한다. <b>자격 선언</b>은 이 앱이 어떤 신호를 쓰는지를 매니페스트 meta-data에 선언하고, <b>실행레벨 Tier</b>는 누가 누구를 선점할 수 있는지를 정하며, 이 둘이 정적 검사와 런타임 중재로 이중 방어를 이룬다.</p>
+
+  <section id="entitlements">
+    <div class="kicker">자격 선언</div>
+    <h2>매니페스트 meta-data</h2>
+    <p>앱이 어떤 제어 신호를 쓸지는 코드가 아니라 <b>설치 시 고정된 매니페스트</b>에 선언한다. <code>AgVehicleService</code>는 <code>attach</code> 시점에 <code>PackageManager</code>로 이 값을 직접 읽는다. 앱이 AIDL 파라미터로 "나는 이 신호를 쓴다"고 자기 신고하는 경로는 없다.</p>
+    <div class="tblwrap">
+      <table>
+        <thead><tr><th>meta-data 키</th><th>필수/선택</th><th>의미</th></tr></thead>
+        <tbody>
+          <tr><td class="p">farm.agmo.vehicle.USES_CONTROL</td><td>필수</td><td>쉼표 구분 제어 신호 키 목록. 실행 중인 다른 앱과 겹치면 (동일 tier일 때) 실행 자체가 차단된다.</td></tr>
+          <tr><td class="p">farm.agmo.vehicle.OPT_CONTROL</td><td>선택</td><td>쉼표 구분 제어 신호 키 목록. 겹쳐도 실행을 막지 않고 그 기능만 degrade(비활성)된다.</td></tr>
+          <tr><td class="p">farm.agmo.vehicle.CONFLICT_WITH</td><td>선택</td><td>신호와 무관하게 무조건 공존 불가한 앱 패키지명(쉼표 구분). 어느 쪽이 선언했든 양방향으로 차단된다.</td></tr>
+          <tr><td class="p">farm.agmo.vehicle.CONTROL_TIER</td><td>선택</td><td>값이 정확히 <code>"SYSTEM"</code>일 때만 <a href="#tier">Tier</a>를 하강시킨다. 그 외/생략은 기본값 <code>APP</code>.</td></tr>
+        </tbody>
+      </table>
+    </div>
+<pre><code>&lt;<span class="tok-t">meta-data</span>
+    <span class="tok-k">android:name</span>=<span class="tok-s">"farm.agmo.vehicle.USES_CONTROL"</span>
+    <span class="tok-k">android:value</span>=<span class="tok-s">"HITCH_CMD,PTO_CMD"</span> /&gt;
+&lt;<span class="tok-t">meta-data</span>
+    <span class="tok-k">android:name</span>=<span class="tok-s">"farm.agmo.vehicle.OPT_CONTROL"</span>
+    <span class="tok-k">android:value</span>=<span class="tok-s">"AUTO_LIFT_CMD"</span> /&gt;
+&lt;<span class="tok-t">meta-data</span>
+    <span class="tok-k">android:name</span>=<span class="tok-s">"farm.agmo.vehicle.CONFLICT_WITH"</span>
+    <span class="tok-k">android:value</span>=<span class="tok-s">"com.example.othercontrolapp"</span> /&gt;
+<span class="tok-c">&lt;!-- 생략 시 기본값 APP. "SYSTEM"만 인식 --&gt;</span>
+&lt;<span class="tok-t">meta-data</span>
+    <span class="tok-k">android:name</span>=<span class="tok-s">"farm.agmo.vehicle.CONTROL_TIER"</span>
+    <span class="tok-k">android:value</span>=<span class="tok-s">"SYSTEM"</span> /&gt;</code></pre>
+    <div class="note info"><span class="lbl">게이트</span> <code>acquire</code> 시점의 자격 검사는 문자열 정확 일치다. <code>Entitlements.canControl(uid, key)</code>는 <code>key ∈ usesControl ∪ optControl</code>일 때만 <code>true</code>를 반환한다. 매니페스트에 없는 신호는 시도 자체가 거부된다(토큰 0). 단 <a href="#tier">SAFETY</a> 계층은 플랫폼 내부 경로 전용이라 이 게이트를 거치지 않는다.</div>
+    <div class="note warn"><span class="lbl">코드 선언 불가</span> 자격은 항상 <code>PackageManager</code>로만 읽는다(<code>AgVehicleService.declOf</code>). AIDL 파라미터로 받으면 앱이 런타임에 자기 자신을 자격 있다고 신고하는 셈이라 게이트가 무력화된다. 매니페스트는 설치 시 고정돼 uid와 같은 신뢰 근거를 가진다.</div>
+  </section>
+
+  <section id="tier">
+    <div class="kicker">실행 우선순위</div>
+    <h2>실행레벨 Tier</h2>
+    <p>실행레벨 Tier는 제어권을 <b>누가 누구를 선점(preempt)할 수 있는지</b>를 정하는 3계층이다. <code>Tier.rank</code>가 클수록 우선순위가 높다. 순서는 <code>SYSTEM(0) &lt; APP(1) &lt; SAFETY(2)</code>이다. <code>outranks(other)</code>는 <code>rank &gt; other.rank</code>일 때 참이며, 즉 <b>엄격히 상위일 때만</b> 선점할 수 있다. 동급끼리는 선점할 수 없다.</p>
+    <div class="ladder">
+      <div class="rung safety"><span class="rk">SAFETY</span><span class="nm">플랫폼 전용</span><span class="ds">비상 정지·인터록 등. 매니페스트로 도달 불가 — 앱은 이 등급을 자칭할 수 없다.</span></div>
+      <div class="rung app"><span class="rk">APP</span><span class="nm">기본값</span><span class="ds"><code>CONTROL_TIER</code> 미선언 시 이 등급. 같은 제어 신호를 쥔 앱끼리는 <a href="#defense">동시 실행이 차단</a>된다.</span></div>
+      <div class="rung system"><span class="rk">SYSTEM</span><span class="nm">편의 자동화</span><span class="ds">예: 홈 AutoLift. 최하위 — 앱이 언제든 선점해 쥘 수 있다.</span></div>
+    </div>
+    <p><code>AppDeclaration.tier: Tier = Tier.APP</code>이 기본값이고, 매니페스트에서 <code>CONTROL_TIER="SYSTEM"</code>일 때만 하강을 허용한다. <b>자진 상승은 없다</b>. 스스로를 <code>SAFETY</code>로 선언하는 경로 자체가 없고, 재획득(같은 uid의 재acquire)도 최초 획득 tier를 그대로 유지한다.</p>
+    <div class="note">SAFETY는 매니페스트로 도달할 수 없다. <code>declOf</code>는 값이 정확히 <code>"SYSTEM"</code>일 때만 하강시키고, 그 외 전부 <code>APP</code>으로 상한을 건다. 플랫폼 전용 승격은 매니페스트를 거치지 않는 별도 내부 경로에서만 이뤄진다.</div>
+  </section>
+
+  <section id="defense">
+    <div class="kicker">방어 이중화</div>
+    <h2>이중 방어 — 정적 + 런타임</h2>
+    <p>같은 제어 신호를 두 앱이 동시에 쥐는 상황은 <b>실행 시작 시점(정적)</b>과 <b>제어 요청 시점(런타임)</b> 두 곳에서 각각 막는다. 하나가 뚫려도 다른 하나가 버스에 명령 주체가 둘 이상 서지 않도록 보장한다.</p>
+    <div class="tblwrap">
+      <table>
+        <thead><tr><th>단계</th><th>시점</th><th>판정</th></tr></thead>
+        <tbody>
+          <tr><td class="p">1차 · ConflictChecker</td><td>attach (실행 시작), 정적</td><td><code>CONFLICT_WITH</code> 겹침 → 무조건 차단. 필수(<code>usesControl</code>) 신호 겹침 → <b>같은 tier일 때만</b> 정적 차단(tier가 다르면 런타임 선점이 단일 제어권을 보장하므로 실행 공존을 허용). 선택(<code>optControl</code>) 신호 겹침 → 차단 없이 degrade만.</td></tr>
+          <tr><td class="p">2차 · ControlArbiter</td><td>acquire (제어 요청), 런타임</td><td>동급 보유 중 → <code>Denied</code>. <b>엄격히 상위</b>만 선점 가능 — <code>StopFirst</code>(안전값 선행) → <code>ReleaseOld</code>(구 세션 반납) → <code>Acquire</code>(신규 획득) 3스텝. 선점당한 앱은 <code>onControlLost</code> 콜백을 수신한다.</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="note info"><span class="lbl">예시</span> 홈 <b>AutoLift</b>(<code>SYSTEM</code>)가 히치를 자동 제어 중일 때, 대시보드 전용 제어앱(<code>APP</code>, 기본값)이 같은 히치 신호로 실행된다. tier가 달라 <code>ConflictChecker</code>는 공존을 허용한다. 이후 이 앱이 <code>acquire</code>하면 <code>APP</code>이 <code>SYSTEM</code>을 <code>outranks</code>하므로 <code>ControlArbiter</code>가 선점을 허가하며, AutoLift에 안전값이 먼저 적용되고 구 세션이 반납된 후 앱이 새 세션을 획득한다. AutoLift는 <code>onControlLost</code>를 받고, 앱이 <code>release</code>하면 <code>SYSTEM</code>이 다시 빈 신호를 <code>acquire</code>해 자동화를 재개할 수 있다.</div>
+  </section>
+
+  <section id="service">
+    <div class="kicker">구현 매핑</div>
+    <h2>AgVehicleService 매핑</h2>
+    <p><code>CONTROL_TIER</code> 파싱은 <code>declOf()</code>에서 이뤄진다. 값이 정확히 <code>"SYSTEM"</code>일 때만 하강하며, 그 외 또는 미선언인 경우는 <code>APP</code>이다. <code>SAFETY</code>는 이 경로로 도달할 수 없다.</p>
+<pre><code><span class="tok-k">val</span> tier = <span class="tok-k">if</span> (meta?.getString(MD_TIER)?.trim()?.uppercase() == <span class="tok-s">"SYSTEM"</span>)
+    Tier.SYSTEM <span class="tok-k">else</span> Tier.APP</code></pre>
+    <p>바인더의 <code>acquire</code>는 이렇게 파싱된 선언 tier를 그대로 <code>PolicyEngine.acquire</code>에 넘긴다.</p>
+<pre><code><span class="tok-k">override fun</span> acquire(key: <span class="tok-t">String</span>): <span class="tok-t">Long</span> {
+    <span class="tok-k">val</span> uid = Binder.getCallingUid()
+    <span class="tok-k">val</span> grant = engine.acquire(uid, key, declOf(uid).tier) ?: <span class="tok-k">return</span> 0L
+    grant.preemptedUid?.takeIf { it != uid }?.let { prev -&gt;
+        clients[prev]?.cb?.runCatching { onControlLost(key) }
+    }
+    <span class="tok-k">return</span> grant.token
+}</code></pre>
+    <div class="note">구 버전은 <code>acquire</code>가 tier를 <code>APP</code>으로 하드코딩했다. 지금은 매니페스트 선언 tier(<code>declOf(uid).tier</code>)를 그대로 쓴다. <code>SAFETY</code>가 이 경로로 나올 수 없는 이유는 <code>declOf</code> 자체가 <code>"SYSTEM"</code> 외에는 전부 <code>APP</code>으로 상한을 걸기 때문이다.</div>
+  </section>
+
+  <div class="pagenav">
+    <a href="oem-genericio.html"><div class="lb">이전</div><div class="tt">← OEM · GenericIO</div></a>
+    <span></span>
+  </div>
+  <div class="foot">AgVehicle SDK · farm.agmo.vehicle · 이 문서는 SDK 소스에서 추출한 공개 API 레퍼런스입니다.</div>
+</main>
+</div>
+</body>
+</html>
