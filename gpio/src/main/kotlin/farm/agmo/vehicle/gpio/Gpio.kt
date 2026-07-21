@@ -1,10 +1,9 @@
 // Gpio.kt — GPIO 도메인 (읽기: Signal 상속 / 쓰기: 제어 세션).
 //
-//   // 입력 읽기 (자격 불필요) — 생명주기 한 줄
-//   val gpio = Gpio(this, object : Gpio.Listener {
-//       override fun onAnalogIn(ch: Int, value: Double)  = runOnUiThread { render(ch, value) }
-//       override fun onDigitalIn(ch: Int, on: Boolean)   = runOnUiThread { render(ch, on) }
-//   })
+//   // 입력 읽기 (자격 불필요) — 람다 or 리스너, 생명주기 한 줄
+//   val gpio = Gpio(this, intervalMs = 200)
+//   gpio.onAnalogIn { ch, v -> runOnUiThread { render(ch, v) } }
+//       .onDigitalIn { ch, on -> runOnUiThread { render(ch, on) } }
 //   lifecycle.addObserver(gpio)
 //
 //   // 디지털 출력 제어 (매니페스트에 USES_CONTROL 선언 필요) — 출력 핀별 세션
@@ -19,7 +18,10 @@ import android.content.Context
 import farm.agmo.vehicle.sdk.AgVehicle
 import farm.agmo.vehicle.sdk.Signal
 
-class Gpio(context: Context, private val listener: Listener) : Signal(context) {
+class Gpio(
+    context: Context,
+    private val intervalMs: Long = 0,
+) : Signal(context) {
 
     /** GPIO 입력 콜백 — 필요한 것만 override. channel은 1-기반. */
     interface Listener {
@@ -27,14 +29,28 @@ class Gpio(context: Context, private val listener: Listener) : Signal(context) {
         fun onDigitalIn(channel: Int, on: Boolean) {}
     }
 
-    override fun subscriptions(): List<AgVehicle.Subscription> = buildList {
-        for (ch in 1..GpioSignals.ANALOG_IN_COUNT) {
-            add(vehicle.subscribe(GpioSignals.analogIn(ch)) { it.number?.let { v -> listener.onAnalogIn(ch, v) } })
-        }
-        for (ch in 1..GpioSignals.DIGITAL_IN_COUNT) {
-            add(vehicle.subscribe(GpioSignals.digitalIn(ch)) { it.number?.let { v -> listener.onDigitalIn(ch, v != 0.0) } })
-        }
+    /** 리스너 방식 — 두 콜백을 한 객체에서 override. */
+    constructor(context: Context, listener: Listener, intervalMs: Long = 0) : this(context, intervalMs) {
+        onAnalogIn(listener::onAnalogIn)
+        onDigitalIn(listener::onDigitalIn)
     }
+
+    // ── 람다 편의 API — 채널 전체를 하나의 람다로 받는다(cb에 channel 인자 포함). ──
+    /** 아날로그 입력 (모든 채널). cb(channel, value) */
+    fun onAnalogIn(cb: (channel: Int, value: Double) -> Unit) = apply {
+        for (ch in 1..GpioSignals.ANALOG_IN_COUNT)
+            regs += { vehicle.subscribe(GpioSignals.analogIn(ch), intervalMs) { it.number?.let { v -> cb(ch, v) } } }
+    }
+
+    /** 디지털 입력 (모든 채널). cb(channel, on) */
+    fun onDigitalIn(cb: (channel: Int, on: Boolean) -> Unit) = apply {
+        for (ch in 1..GpioSignals.DIGITAL_IN_COUNT)
+            regs += { vehicle.subscribe(GpioSignals.digitalIn(ch), intervalMs) { it.number?.let { v -> cb(ch, v != 0.0) } } }
+    }
+
+    private val regs = mutableListOf<() -> AgVehicle.Subscription>()
+
+    override fun subscriptions(): List<AgVehicle.Subscription> = regs.map { it() }
 
     companion object {
         /**

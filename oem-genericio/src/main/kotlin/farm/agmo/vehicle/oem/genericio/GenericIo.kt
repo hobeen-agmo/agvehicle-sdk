@@ -1,10 +1,9 @@
 // GenericIo.kt — 범용 CAN IO 보드 도메인 (읽기: Signal 상속 / 쓰기: 제어 세션).
 //
-//   // 입력 읽기 (자격 불필요)
-//   val io = GenericIo(this, object : GenericIo.Listener {
-//       override fun onAnalogIn(ch: Int, value: Double) = runOnUiThread { render(ch, value) }
-//       override fun onDigitalIn(ch: Int, on: Boolean)  = runOnUiThread { render(ch, on) }
-//   })
+//   // 입력 읽기 (자격 불필요) — 람다 or 리스너
+//   val io = GenericIo(this, intervalMs = 200)
+//   io.onAnalogIn { ch, v -> runOnUiThread { render(ch, v) } }
+//     .onSupply { main, r5 -> runOnUiThread { render(main, r5) } }
 //   lifecycle.addObserver(io)
 //
 //   // PWM 출력 제어 (매니페스트에 USES_CONTROL 선언 필요)
@@ -21,7 +20,10 @@ import android.content.Context
 import farm.agmo.vehicle.sdk.AgVehicle
 import farm.agmo.vehicle.sdk.Signal
 
-class GenericIo(context: Context, private val listener: Listener) : Signal(context) {
+class GenericIo(
+    context: Context,
+    private val intervalMs: Long = 0,
+) : Signal(context) {
 
     /** IO 보드 입력 콜백 — 필요한 것만 override. channel은 1-기반. */
     interface Listener {
@@ -30,16 +32,39 @@ class GenericIo(context: Context, private val listener: Listener) : Signal(conte
         fun onSupply(mainVolts: Double, rail5V: Double) {}
     }
 
-    override fun subscriptions(): List<AgVehicle.Subscription> = buildList {
-        for (ch in 1..GenericIoSignals.ANALOG_IN_COUNT)
-            add(vehicle.subscribe(GenericIoSignals.analogIn(ch)) { it.number?.let { v -> listener.onAnalogIn(ch, v) } })
-        for (ch in 1..GenericIoSignals.DIGITAL_IN_COUNT)
-            add(vehicle.subscribe(GenericIoSignals.digitalIn(ch)) { it.number?.let { v -> listener.onDigitalIn(ch, v != 0.0) } })
-        add(vehicle.subscribeMessage(listOf(GenericIoSignals.SUPPLY_VOLTAGE, GenericIoSignals.SUPPLY_5V)) { m ->
-            val main = m[GenericIoSignals.SUPPLY_VOLTAGE]; val r5 = m[GenericIoSignals.SUPPLY_5V]
-            if (main != null && r5 != null) listener.onSupply(main, r5)
-        })
+    /** 리스너 방식 — 콜백들을 한 객체에서 override. */
+    constructor(context: Context, listener: Listener, intervalMs: Long = 0) : this(context, intervalMs) {
+        onAnalogIn(listener::onAnalogIn)
+        onDigitalIn(listener::onDigitalIn)
+        onSupply(listener::onSupply)
     }
+
+    // ── 람다 편의 API — 채널 콜백은 (channel, …) 인자 포함. ──
+    /** 아날로그 입력 (모든 채널). cb(channel, value) */
+    fun onAnalogIn(cb: (channel: Int, value: Double) -> Unit) = apply {
+        for (ch in 1..GenericIoSignals.ANALOG_IN_COUNT)
+            regs += { vehicle.subscribe(GenericIoSignals.analogIn(ch), intervalMs) { it.number?.let { v -> cb(ch, v) } } }
+    }
+
+    /** 디지털 입력 (모든 채널). cb(channel, on) */
+    fun onDigitalIn(cb: (channel: Int, on: Boolean) -> Unit) = apply {
+        for (ch in 1..GenericIoSignals.DIGITAL_IN_COUNT)
+            regs += { vehicle.subscribe(GenericIoSignals.digitalIn(ch), intervalMs) { it.number?.let { v -> cb(ch, v != 0.0) } } }
+    }
+
+    /** 전원 전압(메인 · 5V 레일). cb(mainVolts, rail5V) */
+    fun onSupply(cb: (mainVolts: Double, rail5V: Double) -> Unit) = apply {
+        regs += {
+            vehicle.subscribeMessage(listOf(GenericIoSignals.SUPPLY_VOLTAGE, GenericIoSignals.SUPPLY_5V), intervalMs) { m ->
+                val main = m[GenericIoSignals.SUPPLY_VOLTAGE]; val r5 = m[GenericIoSignals.SUPPLY_5V]
+                if (main != null && r5 != null) cb(main, r5)
+            }
+        }
+    }
+
+    private val regs = mutableListOf<() -> AgVehicle.Subscription>()
+
+    override fun subscriptions(): List<AgVehicle.Subscription> = regs.map { it() }
 
     companion object {
         /** PWM 출력 제어권. side="HS"/"LS", channel 1~2. */

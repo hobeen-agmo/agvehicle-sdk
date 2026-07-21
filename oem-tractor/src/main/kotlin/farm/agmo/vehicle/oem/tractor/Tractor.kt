@@ -1,12 +1,22 @@
 // Tractor.kt — AGMO Customized Tractor 도메인 (읽기: Signal 상속 / 쓰기: 제어 세션).
 //
 //   // 상태 읽기 (자격 불필요) — 생명주기 한 줄
+//
+//   // (1) 람다 — 필요한 신호만 짧게. object/override 불필요.
+//   val tractor = Tractor(this, intervalMs = 200)
+//   tractor.onFnr { f -> runOnUiThread { render(f.direction) } }
+//   tractor.onRangeShift { r -> runOnUiThread { render(r.gear) } }
+//   lifecycle.addObserver(tractor)
+//
+//   // (2) 리스너 — 여러 신호를 한 객체에서 override
 //   val tractor = Tractor(this, object : Tractor.Listener {
 //       override fun onFnr(f: Fnr)                = runOnUiThread { render(f.direction) }
 //       override fun onRangeShift(r: RangeShift)  = runOnUiThread { render(r.gear) }
 //       override fun onPto(p: Pto)                = runOnUiThread { render(p.mode) }
-//   })
+//   }, intervalMs = 200)
 //   lifecycle.addObserver(tractor)
+//
+// intervalMs: 앱 콜백 최소 간격(ms, 0=전부 전달). 자격 선언 불필요(읽기).
 //
 //   // 제어 (매니페스트에 USES_CONTROL 선언 필요) — 서브시스템별 세션
 //   val fnr = Tractor.fnrControl(this) ?: return
@@ -33,7 +43,10 @@ import farm.agmo.vehicle.sdk.AgVehicle
 import farm.agmo.vehicle.sdk.Signal
 import kotlin.math.roundToLong
 
-class Tractor(context: Context, private val listener: Listener) : Signal(context) {
+class Tractor(
+    context: Context,
+    private val intervalMs: Long = 0,
+) : Signal(context) {
 
     /** 트랙터 상태 콜백 — 필요한 메시지만 override */
     interface Listener {
@@ -50,17 +63,39 @@ class Tractor(context: Context, private val listener: Listener) : Signal(context
         fun onStale(key: String) {}
     }
 
-    override fun subscriptions(): List<AgVehicle.Subscription> = listOf(
-        vehicle.subscribeMessage(Fnr.KEYS)         { Fnr.from(it)?.let(listener::onFnr) },
-        vehicle.subscribeMessage(RangeShift.KEYS)  { RangeShift.from(it)?.let(listener::onRangeShift) },
-        vehicle.subscribeMessage(Pto.KEYS)         { Pto.from(it)?.let(listener::onPto) },
-        vehicle.subscribeMessage(Hydraulic.KEYS)   { Hydraulic.from(it)?.let(listener::onHydraulic) },
-        vehicle.subscribeMessage(Accelerator.KEYS) { Accelerator.from(it)?.let(listener::onAccelerator) },
-        vehicle.subscribeMessage(FnrDiag.KEYS)         { FnrDiag.from(it)?.let(listener::onFnrDiag) },
-        vehicle.subscribeMessage(RangeShiftDiag.KEYS)  { RangeShiftDiag.from(it)?.let(listener::onRangeShiftDiag) },
-        vehicle.subscribeMessage(HydraulicDiag.KEYS)   { HydraulicDiag.from(it)?.let(listener::onHydraulicDiag) },
-        vehicle.subscribeMessage(AcceleratorDiag.KEYS) { AcceleratorDiag.from(it)?.let(listener::onAcceleratorDiag) },
-    ) + STALE_KEYS.map { key -> vehicle.onStale(key) { listener.onStale(key) } }
+    /** 리스너 방식 — 여러 신호를 한 객체에서 override. 내부적으로 람다 등록과 동일 경로. */
+    constructor(context: Context, listener: Listener, intervalMs: Long = 0) : this(context, intervalMs) {
+        onFnr(listener::onFnr); onRangeShift(listener::onRangeShift); onPto(listener::onPto)
+        onHydraulic(listener::onHydraulic); onAccelerator(listener::onAccelerator)
+        onFnrDiag(listener::onFnrDiag); onRangeShiftDiag(listener::onRangeShiftDiag)
+        onHydraulicDiag(listener::onHydraulicDiag); onAcceleratorDiag(listener::onAcceleratorDiag)
+        onStale(listener::onStale)
+    }
+
+    // ── 람다 편의 API — 필요한 신호만 등록(체이닝 가능). ON_START에 실제 구독된다. ──
+    fun onFnr(cb: (Fnr) -> Unit) = msg(Fnr.KEYS, Fnr::from, cb)
+    fun onRangeShift(cb: (RangeShift) -> Unit) = msg(RangeShift.KEYS, RangeShift::from, cb)
+    fun onPto(cb: (Pto) -> Unit) = msg(Pto.KEYS, Pto::from, cb)
+    fun onHydraulic(cb: (Hydraulic) -> Unit) = msg(Hydraulic.KEYS, Hydraulic::from, cb)
+    fun onAccelerator(cb: (Accelerator) -> Unit) = msg(Accelerator.KEYS, Accelerator::from, cb)
+    fun onFnrDiag(cb: (FnrDiag) -> Unit) = msg(FnrDiag.KEYS, FnrDiag::from, cb)
+    fun onRangeShiftDiag(cb: (RangeShiftDiag) -> Unit) = msg(RangeShiftDiag.KEYS, RangeShiftDiag::from, cb)
+    fun onHydraulicDiag(cb: (HydraulicDiag) -> Unit) = msg(HydraulicDiag.KEYS, HydraulicDiag::from, cb)
+    fun onAcceleratorDiag(cb: (AcceleratorDiag) -> Unit) = msg(AcceleratorDiag.KEYS, AcceleratorDiag::from, cb)
+
+    /** 신호 끊김(quality=DISCONNECTED) 알림 등록 — STALE_KEYS(읽기 메시지 전체) 각각에 배선. */
+    fun onStale(cb: (String) -> Unit) = apply {
+        STALE_KEYS.forEach { key -> regs += { vehicle.onStale(key) { cb(key) } } }
+    }
+
+    private val regs = mutableListOf<() -> AgVehicle.Subscription>()
+
+    /** 메시지(신호 여럿) 구독 등록 — parse가 null이면 그 프레임은 건너뛴다. */
+    private fun <T> msg(keys: List<String>, parse: (Map<String, Double>) -> T?, cb: (T) -> Unit) = apply {
+        regs += { vehicle.subscribeMessage(keys, intervalMs) { m -> parse(m)?.let(cb) } }
+    }
+
+    override fun subscriptions(): List<AgVehicle.Subscription> = regs.map { it() }
 
     companion object {
         /** 스테일 감시 대상 신호 키(읽기 메시지 전체) — 테스트 대상 */
