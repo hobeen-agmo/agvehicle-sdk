@@ -1,9 +1,8 @@
 // Hitch.kt — 히치 도메인 (읽기: Signal 상속 / 쓰기: 제어 세션).
 //
-//   // 위치 읽기 (자격 불필요) — 생명주기 한 줄
-//   val hitch = Hitch(this, object : Hitch.Listener {
-//       override fun onPosition(p: HitchPosition) = runOnUiThread { render(p.percent) }
-//   })
+//   // 위치 읽기 (자격 불필요) — 람다 or 리스너, 생명주기 한 줄
+//   val hitch = Hitch(this, intervalMs = 200)
+//   hitch.onPosition { p -> runOnUiThread { render(p.percent) } }
 //   lifecycle.addObserver(hitch)
 //
 //   // 제어 (매니페스트에 USES_CONTROL=HITCH_CMD 선언 필요) — 읽기와 성격이 달라 세션
@@ -19,8 +18,7 @@ import farm.agmo.vehicle.sdk.Signal
 
 class Hitch(
     context: Context,
-    private val listener: Listener,
-    private val intervalMs: Long = 0,   // 앱 콜백 최소 간격(ms). 0=전부 전달, >0=최대 그 간격마다 최신값 1회
+    private val intervalMs: Long = 0,
 ) : Signal(context) {
 
     /** 히치 위치 콜백 (읽기) */
@@ -30,13 +28,29 @@ class Hitch(
         fun onFrontHitch(frontHitch: FrontHitch) {}
     }
 
-    override fun subscriptions(): List<AgVehicle.Subscription> = listOf(
-        vehicle.subscribe(HitchPosition.KEY, intervalMs) { value ->
-            value.number?.let { listener.onPosition(HitchPosition(it)) }
-        },
-        vehicle.subscribeMessage(RearHitch.KEYS, intervalMs) { RearHitch.from(it)?.let(listener::onRearHitch) },
-        vehicle.subscribeMessage(FrontHitch.KEYS, intervalMs) { FrontHitch.from(it)?.let(listener::onFrontHitch) },
-    )
+    /** 리스너 방식 — 여러 신호를 한 객체에서 override. */
+    constructor(context: Context, listener: Listener, intervalMs: Long = 0) : this(context, intervalMs) {
+        onPosition(listener::onPosition)
+        onRearHitch(listener::onRearHitch)
+        onFrontHitch(listener::onFrontHitch)
+    }
+
+    // ── 람다 편의 API ──
+    fun onPosition(cb: (HitchPosition) -> Unit) = value(HitchPosition.KEY, ::HitchPosition, cb)
+    fun onRearHitch(cb: (RearHitch) -> Unit) = msg(RearHitch.KEYS, RearHitch::from, cb)
+    fun onFrontHitch(cb: (FrontHitch) -> Unit) = msg(FrontHitch.KEYS, FrontHitch::from, cb)
+
+    private val regs = mutableListOf<() -> AgVehicle.Subscription>()
+
+    private fun <T> value(key: String, wrap: (Double) -> T, cb: (T) -> Unit) = apply {
+        regs += { vehicle.subscribe(key, intervalMs) { it.number?.let { n -> cb(wrap(n)) } } }
+    }
+
+    private fun <T> msg(keys: List<String>, parse: (Map<String, Double>) -> T?, cb: (T) -> Unit) = apply {
+        regs += { vehicle.subscribeMessage(keys, intervalMs) { m -> parse(m)?.let(cb) } }
+    }
+
+    override fun subscriptions(): List<AgVehicle.Subscription> = regs.map { it() }
 
     companion object {
         /** 데몬 내장 제어 신호 key */
